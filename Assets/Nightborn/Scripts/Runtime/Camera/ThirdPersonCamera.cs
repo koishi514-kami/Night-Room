@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 namespace Nightborn.Cameras
 {
     /// <summary>
-    /// 灰盒阶段的第三人称环绕相机：右键/直接拖动鼠标转视角，滚轮调距离。
+    /// 灰盒阶段的第三人称环绕相机：鼠标转视角，滚轮调距离，射线防止穿墙。
     /// 不用 Cinemachine，先保证基础场景能跑；后面接入 Cinemachine 3 时整体替换掉。
     /// </summary>
     public class ThirdPersonCamera : MonoBehaviour
@@ -18,16 +18,46 @@ namespace Nightborn.Cameras
         [SerializeField] private float pitchMax = 55f;
         [SerializeField] private float heightOffset = 1.45f;
         [SerializeField] private float followSmooth = 0.06f;
+        [SerializeField] private float collisionRadius = 0.28f;
+        [SerializeField] private LayerMask collisionMask = ~0;
 
         private float _yaw;
         private float _pitch = 12f;
         private Vector3 _pivotVelocity;
+        private Vector3 _pivot;
+        private bool _pivotInit;
+
+        public Transform Target => target;
+        public float CurrentDistance => distance;
+
+        private void Awake()
+        {
+            if (target == null)
+            {
+                var player = GameObject.Find("PLAYER_Ada");
+                if (player != null) target = player.transform;
+                else
+                {
+                    var tagged = GameObject.FindWithTag("Player");
+                    if (tagged != null) target = tagged.transform;
+                }
+            }
+
+            if (target != null)
+            {
+                _yaw = target.eulerAngles.y;
+                _pivot = target.position + Vector3.up * heightOffset;
+                _pivotInit = true;
+                transform.SetPositionAndRotation(_pivot, Quaternion.Euler(_pitch, _yaw, 0f));
+            }
+        }
 
         private void Start()
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
-            if (target != null) _yaw = target.eulerAngles.y;
+            if (target == null)
+                Debug.LogError("[Nightborn] ThirdPersonCamera 没有找到目标，请检查 CAM_Rig 上的 target 字段或场景里的 PLAYER_Ada。");
         }
 
         private void LateUpdate()
@@ -35,26 +65,48 @@ namespace Nightborn.Cameras
             var mouse = Mouse.current;
             if (mouse != null)
             {
-                Vector2 delta = mouse.delta.ReadValue() * sensitivity * 0.1f;
-                _yaw += delta.x;
-                _pitch -= delta.y;
-                _pitch = Mathf.Clamp(_pitch, pitchMin, pitchMax);
+                if (Cursor.lockState == CursorLockMode.Locked)
+                {
+                    Vector2 delta = mouse.delta.ReadValue() * sensitivity * 0.1f;
+                    _yaw += delta.x;
+                    _pitch -= delta.y;
+                    _pitch = Mathf.Clamp(_pitch, pitchMin, pitchMax);
 
-                float scroll = mouse.scroll.ReadValue().y * 0.01f;
-                distance = Mathf.Clamp(distance - scroll, minDistance, maxDistance);
+                    float scroll = mouse.scroll.ReadValue().y * 0.01f;
+                    distance = Mathf.Clamp(distance - scroll, minDistance, maxDistance);
+                }
+                else if (mouse.leftButton.wasPressedThisFrame)
+                {
+                    Cursor.lockState = CursorLockMode.Locked;
+                }
 
-                if (mouse.rightButton.wasPressedThisFrame) Cursor.lockState = CursorLockMode.Locked;
+                if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+                {
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
+                }
             }
 
             if (target == null) return;
 
             Vector3 pivotGoal = target.position + Vector3.up * heightOffset;
-            Vector3 pivot = Vector3.SmoothDamp(transform.position, pivotGoal, ref _pivotVelocity, followSmooth);
+            _pivot = _pivotInit
+                ? Vector3.SmoothDamp(_pivot, pivotGoal, ref _pivotVelocity, followSmooth)
+                : pivotGoal;
+            _pivotInit = true;
 
             Quaternion rot = Quaternion.Euler(_pitch, _yaw, 0f);
-            Vector3 camPos = pivot - rot * Vector3.forward * distance;
 
-            transform.SetPositionAndRotation(pivot, rot);
+            float wanted = distance;
+            if (Physics.SphereCast(_pivot, collisionRadius, -rot * Vector3.forward, out RaycastHit hit,
+                    distance, collisionMask, QueryTriggerInteraction.Ignore))
+            {
+                wanted = Mathf.Max(minDistance * 0.6f, hit.distance - 0.05f);
+            }
+
+            Vector3 camPos = _pivot - rot * Vector3.forward * wanted;
+            transform.SetPositionAndRotation(_pivot, rot);
+
             var cam = GetComponentInChildren<UnityEngine.Camera>();
             if (cam != null) cam.transform.SetPositionAndRotation(camPos, rot);
         }

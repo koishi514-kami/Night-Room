@@ -24,15 +24,32 @@ namespace Nightborn.Player
         private CharacterController _cc;
         private Vector3 _planarVelocity;
         private float _verticalVelocity;
+        private Vector3 _spawnPoint;
 
         public bool IsSneaking { get; private set; }
         public float CurrentSpeed => _planarVelocity.magnitude;
+        public Vector2 RawInput { get; private set; }
 
         private void Awake()
         {
             _cc = GetComponent<CharacterController>();
+            _spawnPoint = transform.position;
+
             if (cameraRig == null && UnityEngine.Camera.main != null)
                 cameraRig = UnityEngine.Camera.main.transform.root;
+            if (cameraRig == null)
+            {
+                var rig = GameObject.Find("CAM_Rig");
+                if (rig != null) cameraRig = rig.transform;
+            }
+        }
+
+        private void Start()
+        {
+            if (Keyboard.current == null)
+                Debug.LogError("[Nightborn] 读不到 Keyboard.current：Player Settings → Active Input Handling 需要是 Input System Package (New) 或 Both。");
+            if (cameraRig == null)
+                Debug.LogWarning("[Nightborn] PlayerMotor 没绑定 cameraRig，移动方向会退化成世界坐标。");
         }
 
         private void Update()
@@ -41,12 +58,13 @@ namespace Nightborn.Player
             Vector2 input = Vector2.zero;
             if (kb != null)
             {
-                if (kb.wKey.isPressed) input.y += 1f;
-                if (kb.sKey.isPressed) input.y -= 1f;
-                if (kb.dKey.isPressed) input.x += 1f;
-                if (kb.aKey.isPressed) input.x -= 1f;
+                if (kb.wKey.isPressed || kb.upArrowKey.isPressed) input.y += 1f;
+                if (kb.sKey.isPressed || kb.downArrowKey.isPressed) input.y -= 1f;
+                if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) input.x += 1f;
+                if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) input.x -= 1f;
                 IsSneaking = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
             }
+            RawInput = input;
 
             Vector3 wish = Vector3.zero;
             if (input.sqrMagnitude > 0.0001f)
@@ -54,6 +72,8 @@ namespace Nightborn.Player
                 Vector3 fwd = cameraRig != null ? cameraRig.forward : Vector3.forward;
                 Vector3 right = cameraRig != null ? cameraRig.right : Vector3.right;
                 fwd.y = 0f; right.y = 0f;
+                if (fwd.sqrMagnitude < 0.0001f) fwd = Vector3.forward;
+                if (right.sqrMagnitude < 0.0001f) right = Vector3.right;
                 fwd.Normalize(); right.Normalize();
                 wish = (fwd * input.y + right * input.x).normalized;
             }
@@ -67,6 +87,15 @@ namespace Nightborn.Player
 
             Vector3 motion = _planarVelocity + Vector3.up * _verticalVelocity;
             _cc.Move(motion * Time.deltaTime);
+
+            if (transform.position.y < -20f)
+            {
+                _cc.enabled = false;
+                transform.position = _spawnPoint + Vector3.up * 0.2f;
+                _cc.enabled = true;
+                _planarVelocity = Vector3.zero;
+                _verticalVelocity = 0f;
+            }
 
             if (wish.sqrMagnitude > 0.0001f)
             {

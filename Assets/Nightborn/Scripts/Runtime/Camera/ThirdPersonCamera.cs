@@ -98,7 +98,7 @@ namespace Nightborn.Cameras
             Quaternion rot = Quaternion.Euler(_pitch, _yaw, 0f);
 
             float wanted = distance;
-            if (Physics.SphereCast(_pivot, collisionRadius, -rot * Vector3.forward, out RaycastHit hit,
+            if (Physics.SphereCast(_pivot, collisionRadius, -(rot * Vector3.forward), out RaycastHit hit,
                     distance, collisionMask, QueryTriggerInteraction.Ignore))
             {
                 wanted = Mathf.Max(minDistance * 0.6f, hit.distance - 0.05f);

@@ -70,6 +70,24 @@ namespace Nightborn.EditorTools
                 Debug.LogWarning("[Nightborn] 未找到 m_RenderingMode，保持默认 Forward。");
             }
 
+            // 后处理的 PostProcessData 必须挂在渲染器上，否则 Volume 里的效果整份失效。
+            var ppProp = so.FindProperty("postProcessData");
+            if (ppProp != null && ppProp.objectReferenceValue == null)
+            {
+                var ppData = AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                    "Packages/com.unity.render-pipelines.universal/Runtime/Data/PostProcessData.asset");
+                if (ppData != null)
+                {
+                    ppProp.objectReferenceValue = ppData;
+                    so.ApplyModifiedPropertiesWithoutUndo();
+                    Debug.Log("[Nightborn] 已为渲染器挂上 PostProcessData。");
+                }
+                else
+                {
+                    Debug.LogWarning("[Nightborn] 找不到 URP 的 PostProcessData.asset，后处理不会生效。");
+                }
+            }
+
             var pipeline = UniversalRenderPipelineAsset.Create(rendererData);
             pipeline.name = "Nightborn_URP";
             pipeline.shadowDistance = 35f;
@@ -141,8 +159,16 @@ namespace Nightborn.EditorTools
             color.saturation.Override(-15f);
             color.contrast.Override(8f);
 
+            // VolumeComponent 必须作为 profile 的子资源写入磁盘，否则序列化成 fileID: 0（等于没有效果）。
+            foreach (var c in new VolumeComponent[] { tonemapping, bloom, vignette, color })
+            {
+                c.name = c.GetType().Name;
+                AssetDatabase.AddObjectToAsset(c, profile);
+            }
+
             EditorUtility.SetDirty(profile);
             AssetDatabase.SaveAssets();
+            Debug.Log("[Nightborn] VP_Global 已写入 4 个后处理组件。");
         }
 
         private static GameObject MakeBox(string name, Transform parent, Vector3 center, Vector3 size, Material mat)

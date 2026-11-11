@@ -35,6 +35,13 @@ namespace Nightborn.DebugTools
                 hudGo.AddComponent<Nightborn.UI.NightbornHud>();
             }
 
+            // 目标提示：目标一行 + 贴边箭头 + 教程文案（HANDOVER §4 P0-1/P0-2）
+            if (Object.FindObjectOfType<Nightborn.UI.ObjectiveHud>() == null)
+            {
+                var objGo = new GameObject("HUD_Objectives");
+                objGo.AddComponent<Nightborn.UI.ObjectiveHud>();
+            }
+
             // 开发用自检浮层（默认隐藏，F1 打开）
             if (Object.FindObjectOfType<NightbornDebugHud>() == null)
             {

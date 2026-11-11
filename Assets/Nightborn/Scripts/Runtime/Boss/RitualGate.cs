@@ -10,6 +10,9 @@ namespace Nightborn.Boss
         [SerializeField] private BossRitual ritual;
         private bool _reported;
 
+        /// <summary>是否已经被穿过（HUD 导航用来跳过已完成的门）。</summary>
+        public bool Reported => _reported;
+
         private void Awake()
         {
             var col = GetComponent<Collider>();

@@ -38,7 +38,7 @@ namespace Nightborn.Level
                 if (r == null) continue;
                 var mat = r.material;
                 mat.EnableKeyword("_EMISSION");
-                mat.SetColor("_EmissionColor", new Color(0.88f, 0.64f, 0.29f) * 1.6f);
+                mat.SetColor("_EmissionColor", new Color(0.88f, 0.64f, 0.29f) * 0.9f);
             }
         }
     }

@@ -41,6 +41,8 @@ namespace Nightborn.Boss
         [SerializeField] private GuardAI bossGuard;
         [SerializeField] private Transform player;
 
+        private DouseableLamp[] _allLamps;
+        private RitualGate[] _gatesInScene;
         private int _gates;
         private int _lampsSeen;
         private Stage _stage = Stage.HolyLamps;
@@ -51,6 +53,45 @@ namespace Nightborn.Boss
         public float DistanceToAltar => altar != null && player != null
             ? Vector3.Distance(player.position, altar.position)
             : -1f;
+
+        /// <summary>当前阶段该往哪走（HUD 目标导航用；没有可去的目标时返回 null）。</summary>
+        public Transform CurrentObjectivePoint
+        {
+            get
+            {
+                switch (_stage)
+                {
+                    case Stage.HolyLamps:
+                        return NearestOf(_allLamps, lamp => !lamp.Doused);
+                    case Stage.Veils:
+                        return NearestOf(_gatesInScene, gate => !gate.Reported);
+                    case Stage.Altar:
+                        return altar;
+                    default:
+                        return null;
+                }
+            }
+        }
+
+        /// <summary>按「离玩家最近」挑一个满足条件的目标。</summary>
+        private Transform NearestOf<T>(T[] items, Func<T, bool> accept) where T : Component
+        {
+            if (items == null) return null;
+            Transform best = null;
+            float bestDistance = float.MaxValue;
+            for (int i = 0; i < items.Length; i++)
+            {
+                var item = items[i];
+                if (item == null || !accept(item)) continue;
+                float d = player != null ? Vector3.SqrMagnitude(item.transform.position - player.position) : 0f;
+                if (d < bestDistance)
+                {
+                    bestDistance = d;
+                    best = item.transform;
+                }
+            }
+            return best;
+        }
 
         public event Action<Stage> StageChanged;
 
@@ -66,6 +107,10 @@ namespace Nightborn.Boss
                 if (glow == null) glow = player.GetComponent<SelfGlow>();
             }
             if (flow == null) flow = FindObjectOfType<LevelFlow>();
+
+            // HUD 目标导航要按阶段找最近的目标（圣灯 / 仪式门）
+            _allLamps = FindObjectsOfType<DouseableLamp>();
+            _gatesInScene = FindObjectsOfType<RitualGate>();
         }
 
         private void Update()

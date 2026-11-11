@@ -38,6 +38,9 @@ namespace Nightborn.Level
 
         private static string FilePath => Path.Combine(Application.persistentDataPath, "nightborn_save.json");
 
+        /// <summary>存档文件绝对路径（菜单里显示，方便确认看的是哪份档）。</summary>
+        public static string SavePath => FilePath;
+
         public static SaveData Data
         {
             get
@@ -93,6 +96,12 @@ namespace Nightborn.Level
         {
             var record = Data.levels.Find(r => r.id == levelId && r.completed);
             return record != null;
+        }
+
+        /// <summary>该关是否已通关。`IsUnlocked()` 的语义其实是「上一关已完成」，这里给个直白的名字。</summary>
+        public static bool IsCompleted(string levelId)
+        {
+            return !string.IsNullOrEmpty(levelId) && Data.levels.Find(r => r.id == levelId && r.completed) != null;
         }
 
         public static void SetCheckpoint(string levelId, int checkpoint)

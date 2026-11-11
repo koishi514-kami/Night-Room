@@ -55,6 +55,9 @@ namespace Nightborn.EditorTools
             BuildMansionScene(materials, 2, MansionPath3);
             BuildCathedralScene(materials);
             BuildMenuScene();
+
+            // 场景是几何，目标文案 / 教程提示是内容：生成完再装饰一层（见 NightbornObjectiveSetup）
+            NightbornObjectiveSetup.DecorateAll();
             EditorBuildSettings.scenes = new[]
             {
                 new EditorBuildSettingsScene(MenuScenePath, true),
@@ -340,8 +343,8 @@ namespace Nightborn.EditorTools
                 iron, 1.3f, 60f, 9f, true);
             }
             // ---------- 检查点 ----------
-            MakeCheckpoint(envRoot, 0, new Vector3(0f, 0f, -16f));
-            MakeCheckpoint(envRoot, 1, new Vector3(0f, 0f, 2f));
+            MakeCheckpoint(envRoot, 0, new Vector3(0f, 0f, -16f), iron);
+            MakeCheckpoint(envRoot, 1, new Vector3(0f, 0f, 2f), iron);
 
             // ---------- 出口 ----------
             var exitGo = new GameObject("LEVEL_Exit");
@@ -466,8 +469,8 @@ namespace Nightborn.EditorTools
             var veilR = MakeBox("VEIL_Altar_R", envRoot, new Vector3(7f, 2.5f, 12f), new Vector3(0.2f, 5f, 6f), mist);
             veilR.layer = veilLayer;
 
-            MakeCheckpoint(envRoot, 0, new Vector3(0f, 0f, -16f));
-            MakeCheckpoint(envRoot, 1, new Vector3(0f, 0f, 4f));
+            MakeCheckpoint(envRoot, 0, new Vector3(0f, 0f, -16f), iron);
+            MakeCheckpoint(envRoot, 1, new Vector3(0f, 0f, 4f), iron);
 
             var exitGo = new GameObject("LEVEL_Exit");
             exitGo.transform.SetParent(envRoot, false);
@@ -614,8 +617,8 @@ namespace Nightborn.EditorTools
             var veil = MakeBox("VEIL_Stair", envRoot, new Vector3(-6f, 2.5f, 0f), new Vector3(0.2f, 5f, 6f), mist);
             veil.layer = veilLayer;
 
-            MakeCheckpoint(envRoot, 0, new Vector3(0f, 0f, -16f));
-            MakeCheckpoint(envRoot, 1, new Vector3(0f, 5.2f, 10f));
+            MakeCheckpoint(envRoot, 0, new Vector3(0f, 0f, -16f), iron);
+            MakeCheckpoint(envRoot, 1, new Vector3(0f, 5.2f, 10f), iron);
 
             // 出口在二层
             var exitGo = new GameObject("LEVEL_Exit");
@@ -826,8 +829,8 @@ namespace Nightborn.EditorTools
             soRitual.FindProperty("bossGuard").objectReferenceValue = bossAi;
             soRitual.ApplyModifiedPropertiesWithoutUndo();
 
-            MakeCheckpoint(envRoot, 0, new Vector3(0f, 0f, -16f));
-            MakeCheckpoint(envRoot, 1, new Vector3(0f, 0f, 0f));
+            MakeCheckpoint(envRoot, 0, new Vector3(0f, 0f, -16f), iron);
+            MakeCheckpoint(envRoot, 1, new Vector3(0f, 0f, 0f), iron);
 
             var playerCam = CreatePlayer(new Vector3(0f, 0.2f, -17f), mist, "Ch04_S01", 9);
             // 终章给 2 瓶压光药剂：第三段仪式必须能压光，1 瓶会在前面被用掉导致卡死
@@ -907,12 +910,20 @@ namespace Nightborn.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
             return root;
         }
-        private static void MakeCheckpoint(Transform parent, int index, Vector3 position)
+        private static void MakeCheckpoint(Transform parent, int index, Vector3 position, Material mat)
         {
             // 立式触发区：贴地薄板太难被 CharacterController 碰到
             var go = MakeBox("LEVEL_Checkpoint_" + index, parent, position + Vector3.up * 1f, new Vector3(3f, 2f, 3f), null);
+            // 2026-11-11: 触发体隐藏。3x2x3 实心方块的 Renderer 走默认 URP Lit（纯白），
+            // 而出生点正好落在检查点 0 里，开局镜头直接被糊满白块。
+            var rootRenderer = go.GetComponent<MeshRenderer>();
+            if (rootRenderer != null) rootRenderer.enabled = false;
             var col = go.GetComponent<BoxCollider>();
             col.isTrigger = true;
+            // 地面标记：薄板；Checkpoint 激活时会把所有子 Renderer 点亮成金色。
+            // 父级缩放是 (3,2,3)，所以本地尺寸要除掉父级。
+            MakeBox("GEO_Checkpoint_Mark_" + index, go.transform, new Vector3(0f, -0.5f, 0f),
+                new Vector3(1.0f / 3f, 0.06f / 2f, 1.0f / 3f), mat);
             var cp = go.AddComponent<Nightborn.Level.Checkpoint>();
             var so = new SerializedObject(cp);
             so.FindProperty("index").intValue = index;

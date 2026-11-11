@@ -10,6 +10,7 @@
 | 名称 | 用途 | 许可 | 状态 |
 | --- | --- | --- | --- |
 | Unity MCP for Unity (`com.coplaydev.unity-mcp` 10.3.0) | 编辑器自动化（场景接线、真机验证、截图） | 见包内 LICENSE | 已在 `Packages/manifest.json` |
+| AI Navigation (`com.unity.ai.navigation` 1.1.5) | 守卫寻路的 NavMeshSurface / NavMeshAgent | Unity Companion License | 2026-11-11 安装（M2） |
 | Input System / URP / TextMeshPro / Timeline / VisualScripting | 官方包 | Unity Companion / UPM 条款 | 已在 manifest |
 
 ---

@@ -447,7 +447,7 @@ LightLevel = min(0.35, 环境光亮度 × 0.5)            // Flat (0.15,0.16,0.2
 | 血视 | ✅ M1 完成（冷却型，屏幕投影标记；M2 换 URP 剪影） |
 | 推箱 / 压光药剂 | ✅ M1 完成（见 §14.4） |
 | 选关 UI | ✅ M1 完成（`L_Main` 菜单场景） |
-| 守卫寻路 | ❌ 航点直线移动，绕障靠摆位；M2 接 NavMesh |
+| 守卫寻路 | ✅ M2 完成：接 AI Navigation（见 §15） |
 | 守卫平衡 | ⚠️ 站锥里 0.3 s 秒确认偏硬，M1 已把锥灯强度降到 1.2 |
 
 ---
@@ -504,6 +504,30 @@ LightLevel = min(0.35, 环境光亮度 × 0.5)            // Flat (0.15,0.16,0.2
 | 进关卡后 HUD | 存在（修复了 `RuntimeInitializeOnLoadMethod` 只跑一次导致从菜单进关卡没浮层的问题） |
 | 压光药剂 | 数量 1 → 0，半径 3.5 → 1.0，重复使用返回 False |
 | 推箱 | `Push` 后速度 1.34 m/s、drag 4、约束冻结 Y/旋转；场景里 5 个货箱均已带 `Rigidbody + Pushable` |
+
+---
+
+## 15. M2 实施记录（2026-11-11 起）
+
+### 15.1 NavMesh 寻路
+
+| 内容 | 说明 |
+| --- | --- |
+| 包 | `com.unity.ai.navigation@1.1.5`（AI Navigation，MCP 安装） |
+| `Level/NavMeshRuntimeBake.cs` | 场景是代码生成的，NavMesh 数据没做子资源预存；改为进场景时烘焙一次（40×40 箱庭约几十毫秒），并**排除 Player / Guard 层**避免把角色烘成障碍 |
+| `GuardAI` | 有 `NavMeshAgent` 时走寻路（`SetDestination` + `remainingDistance`），没有则回退到原来的直线移动；`SetDormant` 会 `isStopped + ResetPath` |
+| 层 | 新增 `Guard`（10）；Player=8、Veil=9 |
+
+**验证（Play 模式）**
+
+| 项 | 结果 |
+| --- | --- |
+| 烘焙 | `NavMesh.CalculateTriangulation()` 366 个顶点；`NavMeshSurface` 在 `ENV_TownBlock` 上 |
+| 守卫 | `NavMeshAgent` `isOnNavMesh=true`，layer 10，巡逻状态正常推进 |
+| 绕障 | 让守卫从 (−6, −14) 去 (−2, 6)，路径自动绕开矮墙，**9 个拐点**（x 先绕到 −8.5 再过墙端） |
+| 回归 | 重新启用 `GuardAI` 后巡逻继续推进，`state=Patrol` |
+
+**已知限制**：NavMesh 只在进场景时烘一次，**推箱移动后导航网格不会更新**。M2 后续给货箱挂 `NavMeshObstacle`（carve）或改局部重烘。
 
 ---
 

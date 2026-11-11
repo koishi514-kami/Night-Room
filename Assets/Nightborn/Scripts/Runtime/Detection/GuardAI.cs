@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 using Nightborn.Player;
 using Nightborn.Level;
 
@@ -91,6 +92,7 @@ namespace Nightborn.Detection
         private Vector3 _lastKnown;
 
         private bool _dormant;
+        private NavMeshAgent _agent;
 
         /// <summary>被吸血 / 剧情强制休眠：停巡逻、熄视线锥、清警觉。</summary>
         public void SetDormant(bool dormant)
@@ -103,6 +105,11 @@ namespace Nightborn.Detection
                 CanSeePlayer = false;
             }
             if (coneLight != null) coneLight.enabled = !dormant;
+            if (_agent != null && _agent.enabled && _agent.isOnNavMesh)
+            {
+                _agent.isStopped = dormant;
+                if (dormant) _agent.ResetPath();
+            }
         }
 
         public bool IsDormant => _dormant;
@@ -136,6 +143,15 @@ namespace Nightborn.Detection
         private void Start()
         {
             Resolve();
+            _agent = GetComponent<NavMeshAgent>();
+            if (_agent != null)
+            {
+                _agent.speed = patrolSpeed;
+                _agent.angularSpeed = turnSpeed;
+                _agent.acceleration = patrolSpeed * 4f;
+                _agent.stoppingDistance = 0.2f;
+                _agent.autoBraking = true;
+            }
             if (coneLight != null)
             {
                 coneLight.type = LightType.Spot;
@@ -304,10 +320,21 @@ namespace Nightborn.Detection
             _searchTimer = 0f;
             _wait = 0f;
             _wp = 0;
+            if (_agent != null && _agent.enabled && _agent.isOnNavMesh) _agent.ResetPath();
         }
 
         private bool MoveTowards(Vector3 target, float speed, float dt)
         {
+            // 有 NavMeshAgent 就让它寻路，绕开建筑与矮墙
+            if (_agent != null && _agent.enabled && _agent.isOnNavMesh)
+            {
+                _agent.isStopped = false;
+                _agent.speed = speed;
+                _agent.SetDestination(target);
+                if (_agent.pathPending) return false;
+                return _agent.remainingDistance <= Mathf.Max(0.3f, _agent.stoppingDistance + 0.1f);
+            }
+
             Vector3 flat = new Vector3(target.x, transform.position.y, target.z);
             Vector3 delta = flat - transform.position;
             if (delta.sqrMagnitude < 0.04f) return true;
@@ -320,6 +347,7 @@ namespace Nightborn.Detection
 
         private void RotateTowards(Vector3 dir, float dt)
         {
+            if (_agent != null && _agent.updateRotation) return; // 交给 Agent 转
             if (dir.sqrMagnitude < 0.0001f) return;
             Quaternion look = Quaternion.LookRotation(new Vector3(dir.x, 0f, dir.z));
             transform.rotation = Quaternion.RotateTowards(transform.rotation, look, turnSpeed * dt);

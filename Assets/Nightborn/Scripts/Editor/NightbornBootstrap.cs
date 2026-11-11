@@ -215,6 +215,8 @@ namespace Nightborn.EditorTools
             RenderSettings.skybox = null;
 
             var envRoot = new GameObject("ENV_TownBlock").transform;
+            envRoot.gameObject.AddComponent<Unity.AI.Navigation.NavMeshSurface>();
+            envRoot.gameObject.AddComponent<Nightborn.Level.NavMeshRuntimeBake>();
 
             // ---------- 40 x 40 箱庭 ----------
             MakeBox("GEO_Ground", envRoot, new Vector3(0f, -0.5f, 0f), new Vector3(40f, 1f, 40f), ink);
@@ -301,7 +303,9 @@ namespace Nightborn.EditorTools
                 wps[i] = go.transform;
             }
 
+            int guardLayer = LayerMask.NameToLayer("Guard");
             var guard = new GameObject("NPC_Guard_1");
+            guard.layer = guardLayer;
             guard.transform.position = new Vector3(-2f, 0f, -14f);
             var gBody = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             gBody.name = "GUARD_Body";
@@ -329,6 +333,15 @@ namespace Nightborn.EditorTools
                 wpProp.GetArrayElementAtIndex(i).objectReferenceValue = wps[i];
             soGuard.FindProperty("coneLight").objectReferenceValue = cone;
             soGuard.ApplyModifiedPropertiesWithoutUndo();
+            var agent = guard.AddComponent<UnityEngine.AI.NavMeshAgent>();
+            agent.speed = 1.6f;
+            agent.angularSpeed = 150f;
+            agent.acceleration = 6.4f;
+            agent.radius = 0.3f;
+            agent.height = 1.8f;
+            agent.stoppingDistance = 0.2f;
+            agent.autoBraking = true;
+
             var feedTarget = guard.AddComponent<Nightborn.Level.FeedTarget>();
             var soFeed = new SerializedObject(feedTarget);
             soFeed.FindProperty("guard").objectReferenceValue = guardAI;

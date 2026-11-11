@@ -50,11 +50,11 @@ namespace Nightborn.Detection
         [SerializeField] private Transform[] waypoints;
         [SerializeField] private float patrolSpeed = 1.6f;
         [SerializeField] private float waitAtWaypoint = 1.2f;
-        [SerializeField] private float turnSpeed = 150f;
+        [SerializeField] private float turnSpeed = 90f;
 
         [Header("视觉")]
         [Tooltip("视线锥总张角（度）。")]
-        [SerializeField] private float viewAngle = 65f;
+        [SerializeField] private float viewAngle = 75f;
         [Tooltip("真实判定距离，应比光斑略短。")]
         [SerializeField] private float viewDistance = 11f;
         [SerializeField] private float eyeHeight = 1.6f;
@@ -65,7 +65,7 @@ namespace Nightborn.Detection
         [SerializeField] private float brightThreshold = 0.65f;
         [SerializeField] private float confirmBright = 0.3f;
         [SerializeField] private float confirmDark = 3f;
-        [SerializeField] private float decayPerSecond = 0.6f;
+        [SerializeField] private float decayPerSecond = 0.25f;
 
         [Header("反应")]
         [SerializeField] private float chaseSpeed = 3.4f;
@@ -197,8 +197,10 @@ namespace Nightborn.Detection
             }
             else
             {
-                _progress = Mathf.Clamp01(_progress - dt * decayPerSecond);
+                // 刚丢失视野的宽限期内不掉进度：否则守卫一转身，玩家就"永远发现不了"
                 _lostTimer += dt;
+                if (_lostTimer > lostGrace)
+                    _progress = Mathf.Clamp01(_progress - dt * decayPerSecond);
             }
 
             switch (_state)

@@ -25,12 +25,22 @@ namespace Nightborn.DebugTools
 
         private static void EnsureHud()
         {
-            if (Object.FindObjectOfType<NightbornDebugHud>() != null) return;
-            // 菜单场景不挂调试浮层
+            // 菜单场景不挂任何 HUD
             if (Object.FindObjectOfType<Nightborn.Menu.NightbornMenu>() != null) return;
 
-            var go = new GameObject("DBG_NightbornHud");
-            go.AddComponent<NightbornDebugHud>();
+            // 正式 HUD
+            if (Object.FindObjectOfType<Nightborn.UI.NightbornHud>() == null)
+            {
+                var hudGo = new GameObject("HUD_Nightborn");
+                hudGo.AddComponent<Nightborn.UI.NightbornHud>();
+            }
+
+            // 开发用自检浮层（默认隐藏，F1 打开）
+            if (Object.FindObjectOfType<NightbornDebugHud>() == null)
+            {
+                var go = new GameObject("DBG_NightbornHud");
+                go.AddComponent<NightbornDebugHud>();
+            }
         }
     }
 }

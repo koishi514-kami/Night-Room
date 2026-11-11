@@ -304,7 +304,7 @@ namespace Nightborn.EditorTools
                     new Vector3(2f, 0f, 2f), new Vector3(-2f, 0f, 2f),
                     new Vector3(-2f, 0f, 10f), new Vector3(2f, 0f, 10f)
                 },
-                iron, 1.3f, 45f, 9f, true);
+                iron, 1.3f, 60f, 9f, true);
             // ---------- 检查点 ----------
             MakeCheckpoint(envRoot, 0, new Vector3(0f, 0f, -16f));
             MakeCheckpoint(envRoot, 1, new Vector3(0f, 0f, 2f));

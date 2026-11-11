@@ -10,7 +10,7 @@ namespace Nightborn.DebugTools
     /// </summary>
     public class NightbornDebugHud : MonoBehaviour
     {
-        [SerializeField] private bool visible = true;
+        [SerializeField] private bool visible = false; // 正式 HUD 在跑，调试浮层默认收起（F1 打开）
         [SerializeField] private Key toggleKey = Key.F1;
 
         private PlayerMotor _motor;

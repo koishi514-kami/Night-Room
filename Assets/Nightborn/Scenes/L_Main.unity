@@ -122,7 +122,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &391749841
+--- !u!1 &1217880561
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -130,86 +130,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 391749843}
-  - component: {fileID: 391749842}
-  m_Layer: 0
-  m_Name: MENU_Root
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &391749842
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 391749841}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ebd4f31c8f9380d49a6f9368ceb41218, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  levelScenes:
-  - L_Ch01_S01_Street
-  - L_Ch01_S02_Street
-  - L_Ch01_S03_Street
-  - L_Ch02_S01_Church
-  - L_Ch02_S02_Church
-  - L_Ch02_S03_Church
-  - L_Ch03_S01_Mansion
-  - L_Ch03_S02_Mansion
-  - L_Ch03_S03_Mansion
-  - L_Ch04_S01_Cathedral
-  levelLabels:
-  - "\u7B2C\u4E00\u7AE0 \xB7 \u7B2C\u4E00\u591C\u3000\u8857\u533A"
-  - "\u7B2C\u4E00\u7AE0 \xB7 \u7B2C\u4E8C\u591C\u3000\u8857\u533A"
-  - "\u7B2C\u4E00\u7AE0 \xB7 \u7B2C\u4E09\u591C\u3000\u8857\u533A"
-  - "\u7B2C\u4E8C\u7AE0 \xB7 \u7B2C\u4E00\u591C\u3000\u6559\u5802"
-  - "\u7B2C\u4E8C\u7AE0 \xB7 \u7B2C\u4E8C\u591C\u3000\u6559\u5802"
-  - "\u7B2C\u4E8C\u7AE0 \xB7 \u7B2C\u4E09\u591C\u3000\u6559\u5802"
-  - "\u7B2C\u4E09\u7AE0 \xB7 \u7B2C\u4E00\u591C\u3000\u5B85\u90B8"
-  - "\u7B2C\u4E09\u7AE0 \xB7 \u7B2C\u4E8C\u591C\u3000\u5B85\u90B8"
-  - "\u7B2C\u4E09\u7AE0 \xB7 \u7B2C\u4E09\u591C\u3000\u5B85\u90B8"
-  - "\u7EC8\u7AE0 \xB7 \u4E3B\u6559\u5EA7\u5802"
-  levelIds:
-  - Ch01_S01
-  - Ch01_S02
-  - Ch01_S03
-  - Ch02_S01
-  - Ch02_S02
-  - Ch02_S03
-  - Ch03_S01
-  - Ch03_S02
-  - Ch03_S03
-  - Ch04_S01
---- !u!4 &391749843
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 391749841}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2138277157
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2138277160}
-  - component: {fileID: 2138277159}
-  - component: {fileID: 2138277158}
+  - component: {fileID: 1217880564}
+  - component: {fileID: 1217880563}
+  - component: {fileID: 1217880562}
   m_Layer: 0
   m_Name: CAM_Menu
   m_TagString: MainCamera
@@ -217,13 +140,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2138277158
+--- !u!114 &1217880562
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2138277157}
+  m_GameObject: {fileID: 1217880561}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
@@ -261,13 +184,13 @@ MonoBehaviour:
     m_MipBias: 0
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
---- !u!20 &2138277159
+--- !u!20 &1217880563
 Camera:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2138277157}
+  m_GameObject: {fileID: 1217880561}
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
@@ -312,13 +235,91 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!4 &2138277160
+--- !u!4 &1217880564
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2138277157}
+  m_GameObject: {fileID: 1217880561}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1668186223
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1668186225}
+  - component: {fileID: 1668186224}
+  m_Layer: 0
+  m_Name: MENU_Root
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1668186224
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1668186223}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ebd4f31c8f9380d49a6f9368ceb41218, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  levelScenes:
+  - L_Ch01_S01_Street
+  - L_Ch01_S02_Street
+  - L_Ch01_S03_Street
+  - L_Ch02_S01_Church
+  - L_Ch02_S02_Church
+  - L_Ch02_S03_Church
+  - L_Ch03_S01_Mansion
+  - L_Ch03_S02_Mansion
+  - L_Ch03_S03_Mansion
+  - L_Ch04_S01_Cathedral
+  levelLabels:
+  - "\u7B2C\u4E00\u7AE0 \xB7 \u7B2C\u4E00\u591C\u3000\u8857\u533A"
+  - "\u7B2C\u4E00\u7AE0 \xB7 \u7B2C\u4E8C\u591C\u3000\u8857\u533A"
+  - "\u7B2C\u4E00\u7AE0 \xB7 \u7B2C\u4E09\u591C\u3000\u8857\u533A"
+  - "\u7B2C\u4E8C\u7AE0 \xB7 \u7B2C\u4E00\u591C\u3000\u6559\u5802"
+  - "\u7B2C\u4E8C\u7AE0 \xB7 \u7B2C\u4E8C\u591C\u3000\u6559\u5802"
+  - "\u7B2C\u4E8C\u7AE0 \xB7 \u7B2C\u4E09\u591C\u3000\u6559\u5802"
+  - "\u7B2C\u4E09\u7AE0 \xB7 \u7B2C\u4E00\u591C\u3000\u5B85\u90B8"
+  - "\u7B2C\u4E09\u7AE0 \xB7 \u7B2C\u4E8C\u591C\u3000\u5B85\u90B8"
+  - "\u7B2C\u4E09\u7AE0 \xB7 \u7B2C\u4E09\u591C\u3000\u5B85\u90B8"
+  - "\u7EC8\u7AE0 \xB7 \u4E3B\u6559\u5EA7\u5802"
+  levelIds:
+  - Ch01_S01
+  - Ch01_S02
+  - Ch01_S03
+  - Ch02_S01
+  - Ch02_S02
+  - Ch02_S03
+  - Ch03_S01
+  - Ch03_S02
+  - Ch03_S03
+  - Ch04_S01
+  menuAmbienceVolume: 0.3
+--- !u!4 &1668186225
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1668186223}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -331,5 +332,5 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 2138277160}
-  - {fileID: 391749843}
+  - {fileID: 1217880564}
+  - {fileID: 1668186225}

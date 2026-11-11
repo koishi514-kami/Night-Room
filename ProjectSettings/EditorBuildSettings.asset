@@ -11,4 +11,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Nightborn/Scenes/L_Ch01_S01_Street.unity
     guid: dd9105e3b878fa74f9265a1215464410
+  - enabled: 1
+    path: Assets/Nightborn/Scenes/L_Ch02_S01_Church.unity
+    guid: 19e68f82aeb836c47b75254282fe3b55
   m_configObjects: {}

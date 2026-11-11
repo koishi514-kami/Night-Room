@@ -305,6 +305,14 @@ namespace Nightborn.Detection
             Debug.Log("[Nightborn] 守卫发现玩家 → 围猎");
         }
 
+        /// <summary>外部叠加检测进度（夜巡犬的气味追踪用）。满 1 会直接进入追逐。</summary>
+        public void AddDetection(float amount)
+        {
+            if (_dormant || amount <= 0f) return;
+            _progress = Mathf.Clamp01(_progress + amount);
+            if (_progress >= 1f) EnterChase();
+        }
+
         /// <summary>外部（围猎 / 剧情）唤醒。</summary>
         public void Alert(Vector3 lastKnown)
         {

@@ -350,12 +350,15 @@ Editor/   (4 文件)
 
 ## 10. 交接尾巴（2026-11-12 下班前状态）
 
-- **工作树未提交**：`git status --porcelain` 现在 **80 项** = 59 修改 / 14 未跟踪 / 7 删除。
-  - 未跟踪里有 **3 个新 `.cs` 必须入库**（否则别人 clone 下来编译不过、设置菜单和整关巡察全丢）：`Runtime/Settings/`（`NightbornSettings.cs` + 目录 meta）、`Runtime/UI/SettingsPanel.cs`、`Runtime/Debug/LevelAutoPilot.cs`，外加 4 张截图（`27_burn_frame_light` / `28_menu_settings_button` / `29_settings_panel` / `baseline_menu`）。
-  - 7 个删除是本轮清理（`Assets/Scenes.meta` 空目录 + `menu_play.png`/`menu_v2.png` 重复截图 + `screenshot-20261111-223034.png` 纯黑空帧，各带 `.meta`）。
-  - 恢复工作先 `git add -A && git commit`（或先 `git diff` 过一遍）。
-- **Unity 编辑器状态**：非 Play、Console 0 error / 0 warning。
-- **存档/设置**：本机 `nightborn_save.json` 已被测试改动过（10 关全通、master=1.0）。要干净体验先备份再在菜单「新的夜晚 → 清空并重来」。
+- **已提交，工作树干净**（`git status --porcelain` 为空）。本轮三个提交，按内容分层，便于 review：
+  | 提交 | 内容 |
+  | --- | --- |
+  | `86ca1e0` `fix+feat+test: 全 10 关可达性实测 + 五子系统修复，新增整关巡察工具` | 44 个 `.cs`（含新增 `LevelAutoPilot` / `NightbornSettings` / `SettingsPanel`）+ `.gitignore` / `.gitattributes` |
+  | `501d97f` `assets: 按新 Bootstrap 重建 11 个场景 + 材质 / URP 设置` | 11 个 `.unity` + 5 个材质 + 2 个 URP 设置（纯 `BuildAll` 产物） |
+  | `fdc107a` `docs: 交接文档重写（面向接手的 AI）+ 仓库清理` | 四份文档 + 截图增删 + 删空目录 `Assets/Scenes` |
+  > **尚未 push**。要发布就 `git push origin master`（凭据在 Windows 凭据管理器，见 §2.7）。
+- **Unity 编辑器状态**：非 Play、Console 0 error / 0 warning、程序集比所有 `.cs` 新（无待编译）。
+- **存档/设置**：本机 `nightborn_save.json` 被测试改动过（10 关全通、`master=1.0`）。要干净体验先备份，再在菜单「新的夜晚 → 清空并重来」。
 - 已验证通过的口径见 §2.4；下次改动后请重跑并**更新 §2.4 的数字**，别让文档和现实脱节。
 
 **原交接人**：— 　**本轮接手**：AI（2026-11-12）　**下一次接手**：__________

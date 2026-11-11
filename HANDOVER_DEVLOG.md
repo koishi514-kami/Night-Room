@@ -1158,9 +1158,25 @@ LightLevel = min(0.35, 环境光亮度 × 0.5)            // Flat (0.15,0.16,0.2
 | 「`MCPForUnity.UseHttpTransport` 必须是 0」 | 本机注册表里**没有**这个值，且包内默认是 **true** | 改成条件句「连不上时把它置 0」，并补 8080/6400 的关系 |
 | `THIRD_PARTY.md` 引用 `HANDOVER §8.1` | §8 是「下一轮做什么」，规则在 §5.1 | 改 §5.1（DEVLOG §24.3 的 `§8.2`、§26.4 的 `§25.7` 也一并改对） |
 
-还补了：`Logs/rebuild.log` 当前不存在（只有跑过命令行构建才有）、工作树真实数字（80 项）、命名前缀全表（`P_` 标「暂无」）、`NightbornEditorGuard` 仍在校验已删除的 `PLAYER_Lantern`（**每关必报的假故障**）、看守的 `turnSpeed 70` / `catchDistance 2.0`。
+还补了：`Logs/rebuild.log` 当前不存在（只有跑过命令行构建才有）、工作树真实数字（提交前 80 项，见 §27.5）、命名前缀全表（`P_` 标「暂无」）、`NightbornEditorGuard` 仍在校验已删除的 `PLAYER_Lantern`（**每关必报的假故障**）、看守的 `turnSpeed 70` / `catchDistance 2.0`。
 
 ### 27.4 给下一任的两条工作方法（已写进 HANDOVER §5）
 
 1. **不熟悉的功能先查现成方案**：GitHub / 官方示例 / Asset Store / 本机 `rea-agents` MCP；只有「找不到 / 许可证不兼容 / 耦合过深」才自己写，并在代码注释里写明原因、把来源记进 `THIRD_PARTY.md`。
 2. **复杂任务拆成多个简单任务、开多个子 agent**：按**文件域**切分互不重叠；子 agent 一律**禁用 unity MCP**（只有一个编辑器实例），只做读码+改码+给验证清单；**主 agent 独占真机**，负责定验收口径、自己不采信「编译通过」、逐条判定并写回 DEVLOG。本轮就是按这个分工一轮修掉 40+ 缺陷。
+
+### 27.5 提交（2026-11-12 收尾）
+
+按「可 review」拆成三个提交，工作树已干净：
+
+| 提交 | 内容 | 规模 |
+| --- | --- | --- |
+| `86ca1e0` `fix+feat+test: 全 10 关可达性实测 + 五子系统修复，新增整关巡察工具` | 44 个 `.cs`（含新增 `Debug/LevelAutoPilot.cs`、`Settings/NightbornSettings.cs`、`UI/SettingsPanel.cs`）+ `.gitignore` / `.gitattributes` | 45 files, +5,971 / −629 |
+| `501d97f` `assets: 按新 Bootstrap 重建 11 个场景 + 材质 / URP 设置` | 11 个 `.unity` + 5 个材质 + 2 个 URP 设置（纯 `BuildAll` 产物） | 18 files, +30,528 / −24,095 |
+| `fdc107a` `docs: 交接文档重写（面向接手的 AI）+ 仓库清理` | 四份文档 + 4 张新截图 + 3 张重复/空帧截图与空目录 `Assets/Scenes` 的删除 | — |
+
+提交后校验：`git status --porcelain` 空；已跟踪文件 247 个；无 `Library/Temp/Logs/UserSettings/_Preview` 误入库；
+最大已跟踪文件 0.25 MB（截图）；三条提交信息无 BOM（PowerShell 的 `-Encoding utf8` 会加 BOM，
+用 `UTF8Encoding($false)` 写 message 文件才能干净，这次踩了一次并 `--amend` 修好）。
+
+**尚未 push**，`git push origin master` 即可（凭据在 Windows 凭据管理器，见 `HANDOVER.md` §2.7）。

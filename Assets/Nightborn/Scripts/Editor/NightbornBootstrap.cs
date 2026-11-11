@@ -20,8 +20,12 @@ namespace Nightborn.EditorTools
         private const string MaterialsDir = Root + "/Materials";
         private const string ScenesDir = Root + "/Scenes";
         private const string ScenePath = ScenesDir + "/L_Ch01_S01_Street.unity";
+        private const string ScenePath2 = ScenesDir + "/L_Ch01_S02_Street.unity";
+        private const string ScenePath3 = ScenesDir + "/L_Ch01_S03_Street.unity";
         private const string MenuScenePath = ScenesDir + "/L_Main.unity";
         private const string ChurchScenePath = ScenesDir + "/L_Ch02_S01_Church.unity";
+        private const string ChurchPath2 = ScenesDir + "/L_Ch02_S02_Church.unity";
+        private const string ChurchPath3 = ScenesDir + "/L_Ch02_S03_Church.unity";
 
         private static readonly Color C_Ink = new Color32(0x0E, 0x0F, 0x12, 0xFF);
         private static readonly Color C_Blood = new Color32(0x8B, 0x1E, 0x28, 0xFF);
@@ -36,14 +40,22 @@ namespace Nightborn.EditorTools
             var pipeline = CreateRenderPipeline();
             var materials = CreateMaterials();
             CreateGlobalVolume();
-            BuildStreetScene(pipeline, materials);
-            BuildChurchScene(materials);
+            BuildStreetScene(pipeline, materials, 0, ScenePath);
+            BuildStreetScene(pipeline, materials, 1, ScenePath2);
+            BuildStreetScene(pipeline, materials, 2, ScenePath3);
+            BuildChurchScene(materials, 0, ChurchScenePath);
+            BuildChurchScene(materials, 1, ChurchPath2);
+            BuildChurchScene(materials, 2, ChurchPath3);
             BuildMenuScene();
             EditorBuildSettings.scenes = new[]
             {
                 new EditorBuildSettingsScene(MenuScenePath, true),
                 new EditorBuildSettingsScene(ScenePath, true),
-                new EditorBuildSettingsScene(ChurchScenePath, true)
+                new EditorBuildSettingsScene(ScenePath2, true),
+                new EditorBuildSettingsScene(ScenePath3, true),
+                new EditorBuildSettingsScene(ChurchScenePath, true),
+                new EditorBuildSettingsScene(ChurchPath2, true),
+                new EditorBuildSettingsScene(ChurchPath3, true)
             };
             AssetDatabase.SaveAssets();
             Debug.Log("[Nightborn] 基础场景生成完成 -> " + ScenePath);
@@ -203,7 +215,7 @@ namespace Nightborn.EditorTools
             return go;
         }
 
-        private static void BuildStreetScene(UniversalRenderPipelineAsset pipeline, Material[] mats)
+        private static void BuildStreetScene(UniversalRenderPipelineAsset pipeline, Material[] mats, int variant, string path)
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             Material ink = mats[0], bloodBrick = mats[1], candle = mats[2], iron = mats[3], mist = mats[4];
@@ -243,13 +255,17 @@ namespace Nightborn.EditorTools
                 new Vector3(4f, 0.5f, 8f), new Vector3(-6.5f, 0.5f, -9f),
                 new Vector3(11.5f, 0.5f, 3f)
             };
-            for (int i = 0; i < cratePos.Length; i++)
+            int crateCount = variant >= 2 ? 3 : cratePos.Length;
+            for (int i = 0; i < crateCount; i++)
             {
                 var crate = MakeBox("PROP_Crate_" + (i + 1), envRoot, cratePos[i], new Vector3(1.1f, 1f, 1.1f), iron);
                 // 可推：Rigidbody 冻结 Y/旋转，玩家顶住即可推动（遮光用）
                 crate.AddComponent<Rigidbody>();
                 crate.AddComponent<Nightborn.Interaction.Pushable>();
             }
+
+            if (variant >= 1)
+                MakeCandle(envRoot, "LAMP_Street_2", new Vector3(-8f, 0f, 10f), true, candle, iron);
 
             // ---------- 薄幕（Veil 层）：影身可穿，光身被挡 ----------
             int veilLayer = LayerMask.NameToLayer("Veil");
@@ -261,7 +277,7 @@ namespace Nightborn.EditorTools
             // ---------- 街灯（可吹灭） ----------
             var lampRoot = new GameObject("LAMP_Street_1");
             lampRoot.transform.SetParent(envRoot, false);
-            lampRoot.transform.position = new Vector3(3f, 0f, 4f);
+            lampRoot.transform.position = variant >= 2 ? new Vector3(0f, 0f, 8f) : new Vector3(3f, 0f, 4f);
             MakeCylinder("LAMP_Post", lampRoot.transform, new Vector3(0f, 2.2f, 0f), new Vector3(0.12f, 2.2f, 0.12f), iron);
 
             var bulb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -300,6 +316,8 @@ namespace Nightborn.EditorTools
                 },
                 mist, 1.6f, 65f, 11f, false);
 
+            if (variant >= 1) // 第一夜只有守卫；第二/三夜加执灯修士
+            {
             // 执灯修士：北侧走廊，灯照范围大、吹不灭
             MakeGuard(envRoot, "NPC_Monk_1", new Vector3(2f, 0f, 2f),
                 new[]
@@ -308,6 +326,7 @@ namespace Nightborn.EditorTools
                     new Vector3(-2f, 0f, 10f), new Vector3(2f, 0f, 10f)
                 },
                 iron, 1.3f, 60f, 9f, true);
+            }
             // ---------- 检查点 ----------
             MakeCheckpoint(envRoot, 0, new Vector3(0f, 0f, -16f));
             MakeCheckpoint(envRoot, 1, new Vector3(0f, 0f, 2f));
@@ -361,7 +380,8 @@ namespace Nightborn.EditorTools
             moonLight.shadowCustomResolution = 2048;
             moon.transform.rotation = Quaternion.Euler(55f, -30f, 0f);
 
-            var playerCam = CreatePlayer(new Vector3(0f, 0.2f, -17f), mist, "Ch01_S01", 0);
+            var levelId = "Ch01_S0" + (variant + 1);
+            var playerCam = CreatePlayer(new Vector3(0f, 0.2f, -17f), mist, levelId, variant);
 
 
 
@@ -374,15 +394,15 @@ namespace Nightborn.EditorTools
             volume.sharedProfile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(SettingsDir + "/VP_Global.asset");
 
             // ---------- 存档 ----------
-            EditorSceneManager.SaveScene(scene, ScenePath);
+            EditorSceneManager.SaveScene(scene, path);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
-            Debug.Log("[Nightborn] 场景已保存：" + ScenePath);
+            Debug.Log("[Nightborn] 街区场景已保存：" + path);
 
             RenderPreview(playerCam);
         }
 
         /// <summary>第二章：教堂（室内、纵深）+ 夜巡犬。</summary>
-        private static void BuildChurchScene(Material[] mats)
+        private static void BuildChurchScene(Material[] mats, int variant, string path)
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             Material ink = mats[0], bloodBrick = mats[1], candle = mats[2], iron = mats[3], mist = mats[4];
@@ -425,7 +445,8 @@ namespace Nightborn.EditorTools
             MakeBox("GEO_AltarBlock", envRoot, new Vector3(0f, 1.4f, 16f), new Vector3(3f, 0.8f, 1.4f), bloodBrick);
 
             MakeCandle(envRoot, "LAMP_Church_L", new Vector3(-8f, 0f, 4f), true, candle, iron);
-            MakeCandle(envRoot, "LAMP_Church_R", new Vector3(8f, 0f, -4f), true, candle, iron);
+            if (variant < 2)
+                MakeCandle(envRoot, "LAMP_Church_R", new Vector3(8f, 0f, -4f), true, candle, iron);
 
             int veilLayer = LayerMask.NameToLayer("Veil");
             var veilL = MakeBox("VEIL_Altar_L", envRoot, new Vector3(-7f, 2.5f, 12f), new Vector3(0.2f, 5f, 6f), mist);
@@ -492,7 +513,32 @@ namespace Nightborn.EditorTools
             soHound.ApplyModifiedPropertiesWithoutUndo();
             hound.AddComponent<Nightborn.Detection.Bloodhound>();
 
-            var playerCam = CreatePlayer(new Vector3(0f, 0.2f, -17f), mist, "Ch02_S01", 1);
+            if (variant >= 1)
+            {
+                var hound2 = MakeGuard(envRoot, "NPC_Hound_2", new Vector3(-12f, 0f, 8f),
+                    new[]
+                    {
+                        new Vector3(-12f, 0f, 8f), new Vector3(-12f, 0f, -8f),
+                        new Vector3(12f, 0f, -8f), new Vector3(12f, 0f, 8f)
+                    },
+                    ink, 2.2f, 35f, 7f, false);
+                hound2.AddComponent<Nightborn.Detection.Bloodhound>();
+            }
+
+            if (variant >= 2)
+            {
+                // 第三夜：祭坛前站一名执灯修士（灯吹不灭，必须绕或等巡照间隙）
+                MakeGuard(envRoot, "NPC_Monk_Church", new Vector3(0f, 0f, 10f),
+                    new[]
+                    {
+                        new Vector3(0f, 0f, 10f), new Vector3(-4f, 0f, 6f),
+                        new Vector3(4f, 0f, 6f)
+                    },
+                    iron, 1.2f, 55f, 9f, true);
+            }
+
+            var levelId = "Ch02_S0" + (variant + 1);
+            var playerCam = CreatePlayer(new Vector3(0f, 0.2f, -17f), mist, levelId, 3 + variant);
 
             var volumeGo = new GameObject("POSTFX_GlobalVolume");
             var volume = volumeGo.AddComponent<Volume>();
@@ -500,8 +546,8 @@ namespace Nightborn.EditorTools
             volume.priority = 0f;
             volume.sharedProfile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(SettingsDir + "/VP_Global.asset");
 
-            EditorSceneManager.SaveScene(scene, ChurchScenePath);
-            Debug.Log("[Nightborn] 教堂场景已保存：" + ChurchScenePath);
+            EditorSceneManager.SaveScene(scene, path);
+            Debug.Log("[Nightborn] 教堂场景已保存：" + path);
             RenderPreview(playerCam);
         }
 
@@ -773,15 +819,36 @@ namespace Nightborn.EditorTools
             var menu = root.AddComponent<Nightborn.Menu.NightbornMenu>();
             var soMenu = new SerializedObject(menu);
 
+            string[] menuScenes =
+            {
+                "L_Ch01_S01_Street", "L_Ch01_S02_Street", "L_Ch01_S03_Street",
+                "L_Ch02_S01_Church", "L_Ch02_S02_Church", "L_Ch02_S03_Church"
+            };
+            string[] menuLabels =
+            {
+                "第一章 · 第一夜　街区", "第一章 · 第二夜　街区", "第一章 · 第三夜　街区",
+                "第二章 · 第一夜　教堂", "第二章 · 第二夜　教堂", "第二章 · 第三夜　教堂"
+            };
+
             var scenesProp = soMenu.FindProperty("levelScenes");
-            scenesProp.arraySize = 2;
-            scenesProp.GetArrayElementAtIndex(0).stringValue = "L_Ch01_S01_Street";
-            scenesProp.GetArrayElementAtIndex(1).stringValue = "L_Ch02_S01_Church";
+            scenesProp.arraySize = menuScenes.Length;
+            for (int i = 0; i < menuScenes.Length; i++)
+                scenesProp.GetArrayElementAtIndex(i).stringValue = menuScenes[i];
+
+            string[] menuIds =
+            {
+                "Ch01_S01", "Ch01_S02", "Ch01_S03",
+                "Ch02_S01", "Ch02_S02", "Ch02_S03"
+            };
+            var idsProp = soMenu.FindProperty("levelIds");
+            idsProp.arraySize = menuIds.Length;
+            for (int i = 0; i < menuIds.Length; i++)
+                idsProp.GetArrayElementAtIndex(i).stringValue = menuIds[i];
 
             var labelsProp = soMenu.FindProperty("levelLabels");
-            labelsProp.arraySize = 2;
-            labelsProp.GetArrayElementAtIndex(0).stringValue = "第一章 · 第一夜　街区";
-            labelsProp.GetArrayElementAtIndex(1).stringValue = "第二章 · 第一夜　教堂";
+            labelsProp.arraySize = menuLabels.Length;
+            for (int i = 0; i < menuLabels.Length; i++)
+                labelsProp.GetArrayElementAtIndex(i).stringValue = menuLabels[i];
 
             soMenu.ApplyModifiedPropertiesWithoutUndo();
 

@@ -16,6 +16,8 @@ namespace Nightborn.Menu
     {
         [SerializeField] private string[] levelScenes = { "L_Ch01_S01_Street" };
         [SerializeField] private string[] levelLabels = { "第一章 · 第一夜　街区" };
+        [Tooltip("与 levelScenes 一一对应的关卡 id（存档里用的那个）。")]
+        [SerializeField] private string[] levelIds = { "Ch01_S01" };
 
         private readonly Color _candle = new Color(0.878f, 0.643f, 0.294f, 1f);
         private readonly Color _ink = new Color(0.055f, 0.059f, 0.071f, 1f);
@@ -64,7 +66,9 @@ namespace Nightborn.Menu
             for (int i = 0; i < levelScenes.Length; i++)
             {
                 string sceneName = levelScenes[i];
-                bool unlocked = i == 0 || SaveSystem.IsUnlocked(sceneName);
+                // 线性推进：第一关常开，之后要求上一关已通关
+                string previousId = i > 0 && i - 1 < levelIds.Length ? levelIds[i - 1] : "";
+                bool unlocked = i == 0 || (!string.IsNullOrEmpty(previousId) && SaveSystem.IsUnlocked(previousId));
                 string label = i < levelLabels.Length ? levelLabels[i] : sceneName;
                 CreateLevelButton(canvasGo.transform, label, sceneName, unlocked, new Vector2(0f, y));
                 y -= 96f;

@@ -12,6 +12,18 @@ EditorBuildSettings:
     path: Assets/Nightborn/Scenes/L_Ch01_S01_Street.unity
     guid: dd9105e3b878fa74f9265a1215464410
   - enabled: 1
+    path: Assets/Nightborn/Scenes/L_Ch01_S02_Street.unity
+    guid: 4b3e37e4e44a3354b94ec63e29a540a1
+  - enabled: 1
+    path: Assets/Nightborn/Scenes/L_Ch01_S03_Street.unity
+    guid: dbfbb09db4c706642920d76accff5af7
+  - enabled: 1
     path: Assets/Nightborn/Scenes/L_Ch02_S01_Church.unity
     guid: 19e68f82aeb836c47b75254282fe3b55
+  - enabled: 1
+    path: Assets/Nightborn/Scenes/L_Ch02_S02_Church.unity
+    guid: c67371c6d755b7d4f96df4ef65737c31
+  - enabled: 1
+    path: Assets/Nightborn/Scenes/L_Ch02_S03_Church.unity
+    guid: 562096490839c1943addefa9f1760da5
   m_configObjects: {}

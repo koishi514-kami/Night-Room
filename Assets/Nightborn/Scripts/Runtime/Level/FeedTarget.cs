@@ -18,6 +18,10 @@ namespace Nightborn.Level
         [Tooltip("昼睡时长（秒）。")]
         [SerializeField] private float sleepDuration = 60f;
 
+        [Header("是否可吸")]
+        [Tooltip("重甲单位（钟楼看守）设为 false。")]
+        [SerializeField] private bool feedable = true;
+
         [Header("判定")]
         [SerializeField] private float feedRange = 1.6f;
         [Tooltip("朝向点积阈值：小于该值算“在背后/侧面”。0 表示只能正后方，1 表示 360 度都能吸。")]
@@ -43,7 +47,7 @@ namespace Nightborn.Level
         /// <summary>玩家现在能不能吸这个目标。</summary>
         public bool CanBeFed(Transform player)
         {
-            if (_asleep || player == null) return false;
+            if (!feedable || _asleep || player == null) return false;
 
             Vector3 toPlayer = player.position - transform.position;
             toPlayer.y = 0f;
@@ -58,6 +62,8 @@ namespace Nightborn.Level
 
             return true;
         }
+
+        public void SetFeedable(bool value) => feedable = value;
 
         /// <summary>被吸：进入昼睡。</summary>
         public void ApplyFeed()

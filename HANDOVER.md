@@ -25,7 +25,7 @@
 | 工程 | `D:\unity\Nightborn`　Unity **2022.3.34f1c1**（必须同版本，换版本会重序列化 URP 资产） |
 | 管线 / 输入 | URP（manifest 写 14.0.6、**实际解析 14.0.11**）、Forward+、HDR、MSAA 4×、Linear；Input System 1.7.0，Active Input Handling = **Both** |
 | 规模 | 11 个场景（菜单 + 9 关 + 终章）· 41 个 C# 脚本 · **6,538 行**（运行时 4,806 / 编辑器 1,732，含空行注释） |
-| 版本库 | 本地 git，分支 `master`，**没有配任何 remote**（提交只落 `D:\unity\Nightborn\.git`，没有 push 目标） |
+| 版本库 | 本地 git 分支 `master`；远端 **https://github.com/koishi514-kami/Night-Room**（仓库名 `Night-Room`，与工程名 Nightborn 不同，同一个项目）。推送见 §2.4 |
 | HEAD | 见 `git log -1` |
 | 完成度 | 完整闭环可玩：菜单选关 → 检查点 → 光/血/化形 → 被抓回滚 → 遗物 → 出口或 Boss 仪式 → 存档 → 回菜单。真机自检 **10/10** |
 | 最大短板 | **美术 0 资产**（全灰盒 + 5 色材质，上架唯一硬门槛）；**手感参数全未真人验证** |
@@ -81,6 +81,21 @@ refresh_unity compile=request mode=force wait_for_ready=true              # 改�
 ```
 
 末尾会自动调 `NightbornObjectiveSetup.DecorateAll()`（目标点 + 教程提示，幂等）。
+
+### 2.4 推送
+
+远端是 **https://github.com/koishi514-kami/Night-Room**（分支 `master`）。仓库名 `Night-Room` 与工程名
+Nightborn 是同一个项目，别以为是两个仓库。
+
+```powershell
+git -C D:\unity\Nightborn remote -v          # 应看到 origin → 上面那个 URL
+git -C D:\unity\Nightborn pull origin master # 先拉
+git -C D:\unity\Nightborn push origin master # 再推
+```
+
+首次 push 需要凭据（三种任选）：`gh auth login`（GitHub CLI，已装但未登录）、
+用 PAT 走 `git -c credential.helper=store`、或配 SSH key。
+**不要把 PAT 写进 remote URL 或 `.git/config`** —— 会跟着仓库一起被看到。
 
 ---
 

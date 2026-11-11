@@ -25,6 +25,12 @@ Unity 3D 哥特吸血鬼潜行解谜。玩家 Ada 自带一圈 3.5 m 柔光（�
 > 玩家身上的光源是「自体光」（`Player/SelfGlow.cs`）。早期方案里的提灯 / `LanternFollow` **已废弃删除**，
 > 看到旧文档提到提灯一律按过期处理。
 
+## 仓库
+
+- 远端：**https://github.com/koishi514-kami/Night-Room**（分支 `master`）
+- GitHub 仓库名是 **Night-Room**，工程内部项目名是 **Nightborn** —— 同一个东西，只是建仓库时名字不同。
+- 接手后先 `git pull`；改完 `git push origin master`。首次 push 需要 GitHub 凭据（PAT 或 `gh auth login`）。
+
 ## 文档
 
 | 文件 | 内容 |

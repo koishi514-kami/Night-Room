@@ -30,6 +30,16 @@ namespace Nightborn.Player
         public float CooldownRemaining => Mathf.Max(0f, _cooldownTimer);
         public float Cooldown01 => cooldown <= 0f ? 0f : Mathf.Clamp01(_cooldownTimer / cooldown);
 
+        /// <summary>外部（UI / 测试）主动开启血视，成功返回 true。</summary>
+        public bool Activate()
+        {
+            if (_activeTimer > 0f || _cooldownTimer > 0f) return false;
+            _activeTimer = duration;
+            _cooldownTimer = cooldown;
+            Debug.Log("[Nightborn] 血视开启（" + duration + "s / 冷却 " + cooldown + "s）");
+            return true;
+        }
+
         private void Update()
         {
             float dt = Time.deltaTime;

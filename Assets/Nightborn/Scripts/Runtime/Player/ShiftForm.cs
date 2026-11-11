@@ -84,6 +84,15 @@ namespace Nightborn.Player
             }
         }
 
+        /// <summary>外部（UI / 测试）切换形态，返回切换后是否处于影身。</summary>
+        public bool Toggle()
+        {
+            if (IsStaggered || _cooldownTimer > 0f) return _shadow;
+            if (_shadow) ExitShadow(false);
+            else EnterShadow();
+            return _shadow;
+        }
+
         private void EnterShadow()
         {
             // 强光下不允许切影身：直接惩罚，避免"无脑开影身穿光"

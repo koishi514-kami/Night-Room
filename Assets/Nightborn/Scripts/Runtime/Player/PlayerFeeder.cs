@@ -50,6 +50,14 @@ namespace Nightborn.Player
             Begin(candidate);
         }
 
+        /// <summary>外部（UI / 测试）触发一次吸血，成功返回 true。</summary>
+        public bool TryFeed(FeedTarget target)
+        {
+            if (_target != null || target == null || !target.CanBeFed(transform)) return false;
+            Begin(target);
+            return true;
+        }
+
         private FeedTarget FindFeedable()
         {
             FeedTarget best = null;

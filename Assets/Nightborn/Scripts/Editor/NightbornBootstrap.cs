@@ -830,6 +830,18 @@ namespace Nightborn.EditorTools
             MakeCheckpoint(envRoot, 1, new Vector3(0f, 0f, 0f));
 
             var playerCam = CreatePlayer(new Vector3(0f, 0.2f, -17f), mist, "Ch04_S01", 9);
+            // 终章给 2 瓶压光药剂：第三段仪式必须能压光，1 瓶会在前面被用掉导致卡死
+            var bossPlayer = GameObject.Find("PLAYER_Ada");
+            if (bossPlayer != null)
+            {
+                var bossPotion = bossPlayer.GetComponent<Nightborn.Player.DimPotion>();
+                if (bossPotion != null)
+                {
+                    var soPotion = new SerializedObject(bossPotion);
+                    soPotion.FindProperty("count").intValue = 2;
+                    soPotion.ApplyModifiedPropertiesWithoutUndo();
+                }
+            }
 
             var volumeGo = new GameObject("POSTFX_GlobalVolume");
             var volume = volumeGo.AddComponent<Volume>();

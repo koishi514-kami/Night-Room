@@ -454,6 +454,7 @@ namespace Nightborn.EditorTools
             soFeeder.ApplyModifiedPropertiesWithoutUndo();
 
             player.AddComponent<Nightborn.Player.BloodSight>();
+            player.AddComponent<Nightborn.Audio.NightbornAudio>();
             var potion = player.AddComponent<Nightborn.Player.DimPotion>();
             var soPotion = new SerializedObject(potion);
             soPotion.FindProperty("glow").objectReferenceValue = glow;

@@ -607,4 +607,23 @@ LightLevel = min(0.35, 环境光亮度 × 0.5)            // Flat (0.15,0.16,0.2
 
 ---
 
+## 17. 音频（2026-11-11）
+
+工程里没有任何音频素材，为了不背版权风险，先用**运行时合成**做占位（`Runtime/Audio/SynthAudio.cs`），之后换成正式音效包时只改 clip 引用。
+
+| 文件 | 说明 |
+| --- | --- |
+| `Audio/SynthAudio.cs` | 6 个合成 clip：脚步（噪声脉冲 + 低通）、吹灯（嘶声）、心跳（52/104 Hz 砰）、警觉（620→1180 Hz 上滑）、被抓（低频 + 噪声）、通关（523/784 Hz 和弦）、环境 drone（6 s 无缝循环，首尾交叉淡化） |
+| `Audio/NightbornAudio.cs` | 4 条音源：`AUDIO_Ambient`（循环 drone）、`AUDIO_Sfx`（事件音）、`AUDIO_Step`（脚步，带 pitch 抖动）、`AUDIO_Heart`（低血心跳） |
+
+**接线的事件**：`BloodSystem.Died`、`DetectionMeter.StateChanged`（可疑/围猎各一档）、`ShiftForm.FormChanged`、`LevelFlow.CaughtEvent` / `LevelCompleted`、`DouseableLamp.DousedEvent`、`Relic.CollectedAny`（后两个是本轮新增的静态事件）。
+
+**规则**：脚步间隔 0.52 s（潜行 1.05 s 且音量减半）；血量 < 35% 心跳从 0.95 s 加速到 0.42 s；吸血过程中有一下心跳。
+
+**验证**：4 条音源都在、`AUDIO_Ambient` 正在循环 6 s drone；切换化形后 `AUDIO_Sfx.isPlaying=true`（事件链路通）；流程自检回到 **10/10**。
+
+**注意**：自检曾出现 8/10，原因是**我手动试玩污染了状态**（灯已被吹灭、化形还在冷却）。测试现在对这两种情况免疫（灯已灭则标注跳过、化形前清冷却）。
+
+---
+
 **交接人**：__________  **接手人**：__________  **日期**：__________

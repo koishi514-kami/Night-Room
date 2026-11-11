@@ -111,6 +111,12 @@ namespace Nightborn.DebugTools
             var lamp = GameObject.Find("LAMP_Street_1").GetComponent<DouseableLamp>();
             if (lamp == null) { Check("吹灭街灯", false, "找不到灯"); yield break; }
 
+            if (lamp.Doused)
+            {
+                Check("吹灭街灯", true, "本局已吹灭，跳过（手动试玩过）");
+                yield break;
+            }
+
             Teleport(new Vector3(2.2f, 0.2f, 4f));
             _probe.Sample();
             float before = _probe.LightLevel;
@@ -175,6 +181,8 @@ namespace Nightborn.DebugTools
             Teleport(new Vector3(0f, 0.2f, 12.6f));
             yield return new WaitForSeconds(0.3f);
 
+            typeof(ShiftForm).GetField("_cooldownTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .SetValue(_shift, 0f); // 清冷却：本局可能手动切过形态
             bool shadow = _shift.Toggle();
             yield return new WaitForSeconds(0.2f);
 

@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using Nightborn.Interaction;
 
@@ -15,6 +16,9 @@ namespace Nightborn.Level
         public string RelicId => relicId;
         public bool Collected => _collected;
         public bool CanInteract => !_collected;
+
+        /// <summary>任意遗物被拾取（音频等系统订阅）。</summary>
+        public static event Action<Vector3> CollectedAny;
         public string Prompt => "拾取血之遗物";
 
         private void Start()
@@ -33,6 +37,7 @@ namespace Nightborn.Level
             if (relicRenderer != null) relicRenderer.enabled = false;
             if (glow != null) glow.enabled = false;
             foreach (var col in GetComponentsInChildren<Collider>()) col.enabled = false;
+            CollectedAny?.Invoke(transform.position);
         }
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using Nightborn.Interaction;
 
@@ -16,6 +17,9 @@ namespace Nightborn.Level
         private bool _doused;
 
         public bool CanInteract => !_doused;
+
+        /// <summary>任意一盏灯被吹灭（音频等系统订阅）。</summary>
+        public static event Action<Vector3> DousedEvent;
         public string Prompt => "吹灭街灯";
         public bool Doused => _doused;
 
@@ -43,6 +47,7 @@ namespace Nightborn.Level
                 mat.SetColor("_EmissionColor", bulbColor * 0.02f);
             }
 
+            DousedEvent?.Invoke(transform.position);
             Debug.Log("[Nightborn] 吹灭街灯：" + name);
         }
     }

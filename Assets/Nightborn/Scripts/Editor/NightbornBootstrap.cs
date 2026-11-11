@@ -29,6 +29,7 @@ namespace Nightborn.EditorTools
         private const string MansionPath1 = ScenesDir + "/L_Ch03_S01_Mansion.unity";
         private const string MansionPath2 = ScenesDir + "/L_Ch03_S02_Mansion.unity";
         private const string MansionPath3 = ScenesDir + "/L_Ch03_S03_Mansion.unity";
+        private const string CathedralPath = ScenesDir + "/L_Ch04_S01_Cathedral.unity";
 
         private static readonly Color C_Ink = new Color32(0x0E, 0x0F, 0x12, 0xFF);
         private static readonly Color C_Blood = new Color32(0x8B, 0x1E, 0x28, 0xFF);
@@ -52,6 +53,7 @@ namespace Nightborn.EditorTools
             BuildMansionScene(materials, 0, MansionPath1);
             BuildMansionScene(materials, 1, MansionPath2);
             BuildMansionScene(materials, 2, MansionPath3);
+            BuildCathedralScene(materials);
             BuildMenuScene();
             EditorBuildSettings.scenes = new[]
             {
@@ -64,7 +66,8 @@ namespace Nightborn.EditorTools
                 new EditorBuildSettingsScene(ChurchPath3, true),
                 new EditorBuildSettingsScene(MansionPath1, true),
                 new EditorBuildSettingsScene(MansionPath2, true),
-                new EditorBuildSettingsScene(MansionPath3, true)
+                new EditorBuildSettingsScene(MansionPath3, true),
+                new EditorBuildSettingsScene(CathedralPath, true)
             };
             AssetDatabase.SaveAssets();
             Debug.Log("[Nightborn] 基础场景生成完成 -> " + ScenePath);
@@ -713,6 +716,131 @@ namespace Nightborn.EditorTools
             RenderPreview(playerCam);
         }
 
+        /// <summary>终章：主教座堂（Boss 场）。</summary>
+        private static void BuildCathedralScene(Material[] mats)
+        {
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Material ink = mats[0], bloodBrick = mats[1], candle = mats[2], iron = mats[3], mist = mats[4];
+
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.ExponentialSquared;
+            RenderSettings.fogDensity = 0.02f;
+            RenderSettings.fogColor = C_Mist;
+            RenderSettings.ambientMode = AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.09f, 0.10f, 0.13f);
+            RenderSettings.skybox = null;
+
+            var envRoot = new GameObject("ENV_Cathedral").transform;
+            envRoot.gameObject.AddComponent<Unity.AI.Navigation.NavMeshSurface>();
+            envRoot.gameObject.AddComponent<Nightborn.Level.NavMeshRuntimeBake>();
+
+            MakeBox("GEO_Ground", envRoot, new Vector3(0f, -0.5f, 0f), new Vector3(40f, 1f, 40f), ink);
+            MakeBox("GEO_Wall_S", envRoot, new Vector3(0f, 8f, -20f), new Vector3(40f, 16f, 1f), ink);
+            MakeBox("GEO_Wall_W", envRoot, new Vector3(-20f, 8f, 0f), new Vector3(1f, 16f, 40f), ink);
+            MakeBox("GEO_Wall_E", envRoot, new Vector3(20f, 8f, 0f), new Vector3(1f, 16f, 40f), ink);
+            MakeBox("GEO_Wall_N", envRoot, new Vector3(0f, 8f, 20f), new Vector3(40f, 16f, 1f), ink);
+
+            // 环廊柱
+            for (int i = 0; i < 8; i++)
+            {
+                float a = i / 8f * Mathf.PI * 2f;
+                MakeCylinder("GEO_Pillar_" + i, envRoot,
+                    new Vector3(Mathf.Cos(a) * 12f, 5f, Mathf.Sin(a) * 12f),
+                    new Vector3(1.2f, 5f, 1.2f), iron);
+            }
+
+            // 祭坛
+            MakeBox("GEO_Altar", envRoot, new Vector3(0f, 0.5f, 14f), new Vector3(14f, 1f, 8f), iron);
+            MakeBox("GEO_AltarBlock", envRoot, new Vector3(0f, 1.5f, 16f), new Vector3(3f, 1f, 1.6f), bloodBrick);
+            var altarAnchor = new GameObject("BOSS_Altar");
+            altarAnchor.transform.SetParent(envRoot, false);
+            altarAnchor.transform.position = new Vector3(0f, 1f, 15f);
+
+            // 三盏圣灯（第一段）
+            var lampA = MakeCandle(envRoot, "LAMP_Holy_A", new Vector3(-10f, 0f, -4f), true, candle, iron);
+            var lampB = MakeCandle(envRoot, "LAMP_Holy_B", new Vector3(10f, 0f, -4f), true, candle, iron);
+            var lampC = MakeCandle(envRoot, "LAMP_Holy_C", new Vector3(0f, 0f, 6f), true, candle, iron);
+
+            // 侧廊薄幕 + 仪式门（第二段）
+            int veilLayer = LayerMask.NameToLayer("Veil");
+            var veilL = MakeBox("VEIL_Side_L", envRoot, new Vector3(-5f, 2.5f, 8f), new Vector3(0.2f, 5f, 6f), mist);
+            veilL.layer = veilLayer;
+            var veilR = MakeBox("VEIL_Side_R", envRoot, new Vector3(5f, 2.5f, 8f), new Vector3(0.2f, 5f, 6f), mist);
+            veilR.layer = veilLayer;
+
+            // 主教（自带强光、视野极宽）
+            var boss = MakeGuard(envRoot, "BOSS_Bishop", new Vector3(0f, 0f, 2f),
+                new[]
+                {
+                    new Vector3(0f, 0f, 2f), new Vector3(9f, 0f, 2f),
+                    new Vector3(9f, 0f, 10f), new Vector3(-9f, 0f, 10f),
+                    new Vector3(-9f, 0f, 2f)
+                },
+                iron, 0.8f, 100f, 16f, true);
+
+            var bossAi = boss.GetComponent<Nightborn.Detection.GuardAI>();
+            var soBoss = new SerializedObject(bossAi);
+            soBoss.FindProperty("chaseSpeed").floatValue = 1.2f;
+            soBoss.FindProperty("searchDuration").floatValue = 90f;
+            soBoss.FindProperty("catchDistance").floatValue = 2.2f;
+            soBoss.FindProperty("turnSpeed").floatValue = 60f;
+            soBoss.ApplyModifiedPropertiesWithoutUndo();
+
+            var bossMonk = boss.GetComponent<Nightborn.Detection.LanternMonk>();
+            if (bossMonk != null)
+            {
+                var soMonk = new SerializedObject(bossMonk);
+                soMonk.FindProperty("baseRadius").floatValue = 7f;
+                soMonk.FindProperty("baseIntensity").floatValue = 1.7f;
+                soMonk.FindProperty("sweepRadius").floatValue = 11f;
+                soMonk.FindProperty("sweepIntensity").floatValue = 2.6f;
+                soMonk.FindProperty("sweepInterval").floatValue = 9f;
+                soMonk.ApplyModifiedPropertiesWithoutUndo();
+            }
+
+            // 仪式门
+            var gateGoL = new GameObject("BOSS_Gate_L");
+            gateGoL.transform.SetParent(envRoot, false);
+            gateGoL.transform.position = new Vector3(-9f, 1.5f, 10f);
+            var gateColL = gateGoL.AddComponent<BoxCollider>();
+            gateColL.size = new Vector3(3f, 3f, 3f);
+            gateGoL.AddComponent<Nightborn.Boss.RitualGate>();
+
+            var gateGoR = new GameObject("BOSS_Gate_R");
+            gateGoR.transform.SetParent(envRoot, false);
+            gateGoR.transform.position = new Vector3(9f, 1.5f, 10f);
+            var gateColR = gateGoR.AddComponent<BoxCollider>();
+            gateColR.size = new Vector3(3f, 3f, 3f);
+            gateGoR.AddComponent<Nightborn.Boss.RitualGate>();
+
+            // 仪式总控
+            var ritualGo = new GameObject("BOSS_Ritual");
+            var ritual = ritualGo.AddComponent<Nightborn.Boss.BossRitual>();
+            var soRitual = new SerializedObject(ritual);
+            var lampsProp = soRitual.FindProperty("holyLamps");
+            lampsProp.arraySize = 3;
+            lampsProp.GetArrayElementAtIndex(0).objectReferenceValue = lampA.GetComponent<Nightborn.Level.DouseableLamp>();
+            lampsProp.GetArrayElementAtIndex(1).objectReferenceValue = lampB.GetComponent<Nightborn.Level.DouseableLamp>();
+            lampsProp.GetArrayElementAtIndex(2).objectReferenceValue = lampC.GetComponent<Nightborn.Level.DouseableLamp>();
+            soRitual.FindProperty("altar").objectReferenceValue = altarAnchor.transform;
+            soRitual.FindProperty("bossGuard").objectReferenceValue = bossAi;
+            soRitual.ApplyModifiedPropertiesWithoutUndo();
+
+            MakeCheckpoint(envRoot, 0, new Vector3(0f, 0f, -16f));
+            MakeCheckpoint(envRoot, 1, new Vector3(0f, 0f, 0f));
+
+            var playerCam = CreatePlayer(new Vector3(0f, 0.2f, -17f), mist, "Ch04_S01", 9);
+
+            var volumeGo = new GameObject("POSTFX_GlobalVolume");
+            var volume = volumeGo.AddComponent<Volume>();
+            volume.isGlobal = true;
+            volume.priority = 0f;
+            volume.sharedProfile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(SettingsDir + "/VP_Global.asset");
+
+            EditorSceneManager.SaveScene(scene, CathedralPath);
+            Debug.Log("[Nightborn] 座堂场景已保存：" + CathedralPath);
+            RenderPreview(playerCam);
+        }
         /// <summary>钟楼看守：宽视野 + 慢速 + 长搜索 + 吸不动。</summary>
         private static GameObject MakeWarden(Transform parent, string name, Vector3 position, Vector3[] wps, Material mat)
         {
@@ -730,7 +858,7 @@ namespace Nightborn.EditorTools
             return go;
         }
         /// <summary>烛台：柱子 + 灯球 + 点光（可选可吹灭）。</summary>
-        private static void MakeCandle(Transform parent, string name, Vector3 position, bool douseable, Material candleMaterial, Material postMaterial)
+        private static GameObject MakeCandle(Transform parent, string name, Vector3 position, bool douseable, Material candleMaterial, Material postMaterial)
         {
             var root = new GameObject(name);
             root.transform.SetParent(parent, false);
@@ -756,7 +884,7 @@ namespace Nightborn.EditorTools
             light.range = 8f;
             light.shadows = LightShadows.None;
 
-            if (!douseable) return;
+            if (!douseable) return root;
 
             var douse = root.AddComponent<Nightborn.Level.DouseableLamp>();
             var so = new SerializedObject(douse);
@@ -765,6 +893,7 @@ namespace Nightborn.EditorTools
             so.FindProperty("bulbs").arraySize = 1;
             so.FindProperty("bulbs").GetArrayElementAtIndex(0).objectReferenceValue = bulb.GetComponent<Renderer>();
             so.ApplyModifiedPropertiesWithoutUndo();
+            return root;
         }
         private static void MakeCheckpoint(Transform parent, int index, Vector3 position)
         {
@@ -1001,13 +1130,15 @@ namespace Nightborn.EditorTools
             {
                 "L_Ch01_S01_Street", "L_Ch01_S02_Street", "L_Ch01_S03_Street",
                 "L_Ch02_S01_Church", "L_Ch02_S02_Church", "L_Ch02_S03_Church",
-                "L_Ch03_S01_Mansion", "L_Ch03_S02_Mansion", "L_Ch03_S03_Mansion"
+                "L_Ch03_S01_Mansion", "L_Ch03_S02_Mansion", "L_Ch03_S03_Mansion",
+                "L_Ch04_S01_Cathedral"
             };
             string[] menuLabels =
             {
                 "第一章 · 第一夜　街区", "第一章 · 第二夜　街区", "第一章 · 第三夜　街区",
                 "第二章 · 第一夜　教堂", "第二章 · 第二夜　教堂", "第二章 · 第三夜　教堂",
-                "第三章 · 第一夜　宅邸", "第三章 · 第二夜　宅邸", "第三章 · 第三夜　宅邸"
+                "第三章 · 第一夜　宅邸", "第三章 · 第二夜　宅邸", "第三章 · 第三夜　宅邸",
+                "终章 · 主教座堂"
             };
 
             var scenesProp = soMenu.FindProperty("levelScenes");
@@ -1019,7 +1150,8 @@ namespace Nightborn.EditorTools
             {
                 "Ch01_S01", "Ch01_S02", "Ch01_S03",
                 "Ch02_S01", "Ch02_S02", "Ch02_S03",
-                "Ch03_S01", "Ch03_S02", "Ch03_S03"
+                "Ch03_S01", "Ch03_S02", "Ch03_S03",
+                "Ch04_S01"
             };
             var idsProp = soMenu.FindProperty("levelIds");
             idsProp.arraySize = menuIds.Length;

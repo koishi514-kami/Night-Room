@@ -917,7 +917,7 @@ LightLevel = min(0.35, 环境光亮度 × 0.5)            // Flat (0.15,0.16,0.2
 | 全通关 | 手工造假档：10 关全 `completed=true` | 按钮 `interactable=False`、文案「全部通关」、10 关全亮 ✅ |
 | 菜单只读性 | 假档 3832 B 进菜单再退出 | 文件仍是 3832 B —— 菜单除「新的夜晚」外不写存档 ✅ |
 
-### 24.3 踩到的坑（已记进 HANDOVER §8.2）
+### 24.3 踩到的坑（已记进 HANDOVER §6「坑」表）
 
 测「新的夜晚」时我改了磁盘上的 `nightborn_save.json` 想恢复数据，结果**被运行中的编辑器会话冲掉**：
 `SaveSystem` 把 `_data` 缓存在内存，之后任何一次 `Save()`（进关卡踩检查点就会触发 `SetCheckpoint`）都把
@@ -928,3 +928,239 @@ LightLevel = min(0.35, 环境光亮度 × 0.5)            // Flat (0.15,0.16,0.2
 ---
 
 **交接人**：__________  **接手人**：__________  **日期**：__________
+
+---
+
+## 25. 2026-11-12 接手第一轮：全关可达性实测 + 五子系统审计（本轮）
+
+> 本轮由「主 agent 独占 Unity 做真机验收 + 5 个并行子 agent 分文件域静态审计并直接改码」完成。
+> 每个子 agent 只碰自己那份文件清单，**不碰 Unity MCP**（只有一个编辑器实例，并发操作会互相踩）。
+
+### 25.1 新增的验收工具（重要，后续都靠它）
+
+| 工具 | 位置 | 干什么 |
+| --- | --- | --- |
+| `LevelAutoPilot` | `Runtime/Debug/LevelAutoPilot.cs` | **用 `InputSystem.QueueStateEvent` 合成按键真的驱动玩家**走一条设计路线到出口。以前文档说「脚本产生不了持续移动输入」，这句作废：合成 W 完全可行（`RawInput` 实测 `(0,1)`）。路线表按场景名硬编码在 `Routes`，几何改了要同步改 |
+| `WalkthroughTest` | `Runtime/Debug/WalkthroughTest.cs` | 重写为**按类型自适配**的 12 项（原来写死街区几何，换关一片假失败）；三态 `✅/❌/⏭`；末尾仍是 `[TEST] ===== 流程自检结束：N 通过 / M 失败 / K 跳过（共 T 项）=====` |
+| 幽灵模式 | `LevelAutoPilot.Launch(true)` | 只测几何：把敌人**整只 `SetActive(false)`**（只禁用 `GuardAI` 不够——身体胶囊仍挡路，实测在教堂西拱门被一个站桩猎犬堵死 25 s；它的灯还会把玩家烧到血 0） |
+| 真机跑法 | `Nightborn/Play 当前场景`（F5）→ `execute_code: Nightborn.DebugTools.LevelAutoPilot.Launch(true)` | Console 里看 `[PILOT]`；末尾一行 `总判定：✅ 通关 / ❌ 未通关` + 用时 / 卡住次数 / 被抓次数 / 血最低 |
+
+**读数顺序坑**：MCP `read_console` 的 `count` 是**从最旧的匹配项开始取**，所以查最新一轮结果要用更具体的 `filter_text`（例如场景名），不能只写 `count=1`。
+
+### 25.2 10 关可达性实测（ghost 模式，合成输入真走）
+
+| 场景 | 结果 | 用时 | 卡点 | 关键路段 |
+| --- | --- | --- | --- | --- |
+| `L_Ch01_S01_Street` | ✅ | 18.8 s | 0 | 出生 → 中路缺口 (x≈2.4) → 检查点 1 (−8.5,13.5) → Tab 穿 z=16 薄幕 → 出口 |
+| `L_Ch01_S02_Street` | ✅ | 18.5 s | 0 | 同上 |
+| `L_Ch01_S03_Street` | ✅ | 20.6 s | 0 | 同上 |
+| `L_Ch02_S01_Church` | ✅ | 15.7 s | 0 | 中殿 → 检查点 1 → 西拱门 x≈−12.5 化形穿幕 → 侧廊北上 → 绕过祭坛（顶面 1 m 上不去） |
+| `L_Ch02_S02_Church` | ✅ | 18.1 s | 0 | 同上 |
+| `L_Ch02_S03_Church` | ✅ | 16.0 s | 0 | 同上（首轮 71.6 s 是幽灵模式没关敌人身体导致的假卡点，修工具后 16.0 s） |
+| `L_Ch03_S01_Mansion` | ✅ | 18.4 s | 0 | 坡脚 (−10,−13.4) → **零台阶上坡** y 0.1→1.9→4.8→5.4 → 回廊 → 塔门 Tab → 出口 |
+| `L_Ch03_S02_Mansion` | ✅ | 18.5 s | 0 | 同上 |
+| `L_Ch03_S03_Mansion` | ✅ | 18.4 s | 0 | 同上 |
+| `L_Ch04_S01_Cathedral` | ✅ | 42.9 s | 0 | 三盏圣灯 → 左右侧堂各化形穿幕过仪式门 → 等 8 s 化形冷却 → 喝压光 → 走两级台阶上台 → `[Boss] 仪式完成`（灯 3 / 门 2 / 距祭坛 2.14 m） |
+
+`NavMesh.CalculatePath((−19,0.2,0) → (6,5.4,0))`（宅邸地面→回廊）本轮由 `PathPartial` 变为 **`PathComplete`**。
+
+### 25.3 功能自检（12 项）真机读数
+
+`L_Ch01_S02_Street`：**12 通过 / 0 失败 / 0 跳过**。要点：
+
+- 吹灭街灯：外光 0.94 → 0.18，`LightsOff=True`，灯球余辉 0.000；
+- 推箱：合成 W 顶住 2 s，位移 **0.26 m**（旧版用 `_cc.Move` 直接位移，测不到真实推力）；
+- 吸血：`NPC_Monk_1` 昼睡，血 60 → 80；
+- 影身穿薄幕：Z 侧偏 −1.40 m；
+- 被发现→回检查点：等待 4.2 s，回程距离 **1.09 m**；
+- 遗物 id `relic_ch01_s02`（原来三关都写死 `relic_ch01_s01`）。
+
+`L_Ch03_S01_Mansion`：**10 通过 / 0 失败 / 2 跳过**。跳过的两项都是「本关本来就没有」：
+⏭ 推箱（宅邸没有货箱）、⏭ 吸血（钟楼看守 `feedable=false`）。要点：复活点 y=0.23（贴地，旧值 1.20）、
+薄幕识别到 `VEIL_TowerGate`、遗物 id `relic_ch03_s01`、被发现→回检查点 4.1 s / 0.12 m、出口在 `(13,6.7,17.5)`。
+
+`L_Ch04_S01_Cathedral`：**9 / 0 / 3**（⏭ 推箱 / 遗物 / 出口，终章靠三段仪式收尾，没有出口门）。
+
+### 25.4 本轮修的 P0（都是实测复现的）
+
+| 问题 | 现象 | 修法 |
+| --- | --- | --- |
+| 宅邸三关上不了二层 | 坡道低端浮空 0.29 m、侧向要抬 0.404 m（`stepOffset` 0.4）；坡顶撞 40 m 通长 `GEO_Rail` | 坡道改南北走向两头零台阶；栏杆拆两段留 5.4 m 缺口；加坡脚踏板 |
+| 宅邸出生走廊被柜子堵死 | 柜子 x=−4+i*5，第二个占 x −0.2..2.2 正压 x=0 | 柜子挪到 x=4+i*3；`GEO_RoomB` 拆两段、门洞对准出生轴 |
+| 街区「三条路线」实际只有两条 | `GEO_LowWall` 16 m 通长（x −8..8），而 BLD_A 与 BLD_B 之间只有 9 m 走廊 → 中路封死 | 收窄到 x −8..2，在 x 2..4 留 2 m 缺口（主 agent 本轮改） |
+| 街区/教堂遗物 ID 撞车 | 三关都写 `relic_ch01_s01` / `relic_ch02_s01` | 改成 `"relic_ch0X_s0" + (variant+1)` |
+| 终章第二段永久卡关 | `RitualGate` 在灭灯前被穿过就永久作废 → `GatesPassed` 永远 < 2 | 门只在 `TryPassGate` 返回 true 时才落锁；加 `OnTriggerStay` 兜底 |
+| 终章第三段不可能完成 | `BOSS_Altar` 在 1 m 高台上，玩家 `stepOffset` 0.4 上不去，最近只能站到 5.43 m > 3 m | 祭坛加 0.34/0.67 两级台阶；`AltarDistance` 改用台面最近点 |
+| 敌人在 NavMesh 外时直线穿墙 | `NavMeshAgent` OnEnable 早于运行时烘焙 | `EnsureOnNavMesh()` 每 0.5 s `SamplePosition` + `Warp` |
+| 追丢一次永不回巡逻 | 搜索计时挂在「到达」这个可能永不成立的事件上 | 搜索预算无条件累加；到点原地扫视（`updateRotation=false`） |
+| 睡着的守卫被拉满 HUD | `Alert()` 不判休眠，进度 1 永不衰减 | `Alert()` 首行 `if (_dormant) return;` |
+| 影身穿薄幕状态泄漏到下一关 | `Physics.IgnoreLayerCollision` 是全局设置，切场景不还原 | `OnDisable` 还原 + 按原值恢复 |
+| 存档被写坏 | 直接覆盖主档，无备份 | `.tmp` → `File.Replace` → `.bak`，坏档回退 |
+| 通关后血归零永久冻结 | `BloodSystem.Die()` 直接 `motor.enabled=false`，而 `LevelFlow` 通关后不再处理死亡 | 改成走 `dead` 移速倍率 + 4 s 看门狗自愈 + 通关后不再灼伤（主 agent 本轮改） |
+| 检查点复活从 1.2 m 高处落地 | 检查点物体本身抬在 y≈1 | `ActivateCheckpoint` 向下打射线贴地（实测 y 由 1.20 → 0.23） |
+| 圣灯点不中 | 唯一可命中的是烛台柱 CapsuleCollider（缩放后半径 0.07 m），而交互是半径 0.25 m 的 SphereCast | `MakeCandle`/街区灯加 0.6 m 交互触发球 |
+| 主教可被吸血 | `MakeGuard` 默认 `feedable=true` | 建 BOSS_Bishop 时 `SetFeedable(false)` |
+| `BuildAll` 装饰顺序错 | `DecorateAll()` 在写 Build Settings 之前跑，而街区函数里又把列表重置成单场景 → 9 关一个都装饰不上 | 顺序提到前面；删掉重置行 |
+
+### 25.5 参数变更（本轮动过的手感数值）
+
+| 参数 | 旧 | 新 | 理由 |
+| --- | --- | --- | --- |
+| `ThirdPersonCamera.sensitivity` 有效值 | 0.016 °/px | **0.16 °/px** | 多乘了一个 0.1，满屏只转 30° |
+| `pitchMin/Max` | −25 / 55 | **−45 / 60** | 宅邸二层与终章祭坛要抬头看 |
+| 滚轮步长 | 1.2 m/格 | **0.48 m/格** | 2–6 m 区间原来 3 格到底 |
+| HUD 红晕 | `(1−血)×0.75` 无界 | `Max(0.05,(1−血)×0.5)`，总 alpha ≤0.62 | 26% 血时 alpha 0.555→0.37 |
+| 检测度视觉 | 叠在血红上（0 血+满检测 = 1.0 全屏） | 独立冷灰窄边框 + 2.2 Hz 脉动 | 血红/冷灰、宽晕/窄框、闷心跳/快告警三轴分离 |
+| 脚步音量 | 0.28×0.28 = 0.078 | **0.28** | 增益被乘了两遍 |
+| `Pushable.pushGain` | 1.2 | **1.0** | 1.2 让箱子跑得比玩家快，接触断断续续 |
+| `LightExposureProbe` 多光源 | 求和 | **取最大** | 两盏灯夹着的暗区会被判灼伤 |
+| `GuardAI.chaseTurnMultiplier` | 无 | 1.8 | 追击时转身 90→162 °/s |
+| `GuardAI.suspiciousProgress` | 无 | 0.6 | 让 `DetectionMeter` 的 60 线真的驱动「停下盯住」 |
+| `LanternMonk.wakeBlendTime` | 无（醒灯瞬间满功率） | 0.6 s | 醒灯不再无预兆灼伤 |
+
+### 25.6 本轮踩到的新坑
+
+| 坑 | 表现 | 解法 |
+| --- | --- | --- |
+| **`Build Base Scene` 在 Play 下执行** | 先删了 URP/Renderer/Volume 资产，再在 `EditorSceneManager.NewScene` 抛 `InvalidOperationException: This cannot be used during play mode` → 渲染管线半残 → `NullReferenceException` 刷屏 → **编辑器卡死（Responding=False）** | 必须先 `manage_editor stop` 再点。卡死后只能 `Stop-Process -Name Unity -Force` 重开工程，重开后重跑 `Build Base Scene` 即自愈 |
+| `edit`/`write` 工具改 `.cs` 报 `ReplaceFileW EIO` | Unity 长期持有句柄，**非 Play 模式也会报** | 用 `[System.IO.File]::Open($p,'Open','Write','ReadWrite')` + `SetLength(0)` 覆盖；锚点匹配前统一 `\r\n`→`\n`（源码混用换行） |
+| 一次性 `QueueStateEvent` 不驱动玩家 | 只发一次 `KeyboardState(Key.W)`，玩家不动 | 必须**每帧**重新 Queue（`LevelAutoPilot` 就是这么做的） |
+| 幽灵模式只关组件不关物体 | 敌人站桩挡路 / 灯照烧血，产生假卡点 | 整只 `SetActive(false)` |
+| 自检把自己的前置步骤破坏了 | 「被发现」项挑的是刚被「吸血」项吸睡的修士 → 12 s 内必 `CanSee=False` | 选敌要排除 `IsDormant` |
+
+### 25.7 仍未做（按价值排序，下一轮从这里接）
+
+1. **美术 0 资产**：依然是上架唯一硬门槛。
+2. **手感真人复验**：相机灵敏度 0.16 °/px、推箱 `drag 4`、药剂 30 s、Boss 视野 100°/16 m 都是推出来的值。
+3. 设置菜单（音量要先接 Audio Mixer，接入点已写在 `NightbornAudio.cs` 末尾注释）。
+4. 叙事文本：仍是 0 字。
+5. 夜巡犬气味穿墙（`Bloodhound` 只看 3D 距离）；建议加遮挡或把 range 收到 7 m。
+6. `NavMeshRuntimeBake` 同步烘一次（实测几十毫秒，浮层已能读到 `LastBakeMs`）。
+7. `WalkthroughTest` 的「目标物可达」在出口被薄幕封住的关卡必然是 `PathPartial`，是信息不是失败。
+
+---
+
+## 26. 2026-11-12 第二轮：移速惩罚模型 / 灼伤可视化 / 设置菜单 / 气味遮挡
+
+### 26.1 「人物突然变慢走不动」——先给结论
+
+玩家能感到的移速变化只有三个来源（`PlayerMotor._speedModifiers`，取最小值）：
+
+| key | 值 | 触发 | 时长 |
+| --- | --- | --- | --- |
+| `burn` | **0.45** | 站在任何光源里（街灯/烛台/**守卫与修士的视线锥灯**也算光源） | 一直，且同时 −6 血/秒 |
+| `stagger` | **0.15** | 在强光里按 Tab 化形（被灼回） | 3 s |
+| `freeze` / `feed` / `dead` | **0** | 被抓 0.8 s / 吸血 1.4 s / 血储归零回检查点前 | 见左 |
+
+**根因（已修）**：旧 `PlayerMotor.Update` 用 `SpeedMultiplier <= 0.001` 判断「锁定」，把**软惩罚**也当成了硬锁。
+在强光里按 Tab 时 `0.45 × 0.15 = 0.0675` → 3.2 m/s × 0.0675 ≈ **0.22 m/s**，玩家体感就是「突然变慢、走不动」。
+
+**改法**（`PlayerMotor`）：
+1. 拆出 `IsHardLocked`（只有 `freeze`/`feed`/`dead` 三个 key 才算「真的不能动」）；
+2. 软惩罚加下限 `minSoftMultiplier = 0.3`（`burn` × `stagger` 触底 = 0.96 m/s，仍然很慢但不再像卡死）；
+3. 新增 `SpeedModifierReport()`，**F1 浮层直接写出**「burn=0.45 stagger=0.15 → ×0.30（已触底）」，以后不用猜；
+4. 硬锁看门狗 `hardLockWatchdog = 6 s`：任何来源锁超过 6 s 一律强制解锁并 `LogWarning`（freeze 0.8 / feed 1.4 / dead ≤4，正常流程远达不到）；
+5. `LevelFlow.HandleBloodDeath()` 里先清 `_protectUntil` 再 `Caught()` —— 复活保护窗（1.2 s）原本会把「刚复活又归零」的死亡吞掉，导致没人复活玩家、只能等 4 s 看门狗，这 4 s 就是另一种「走不动」。
+
+实测（`execute_code` 读 `SpeedModifierReport()`）：
+- 灯下：`burn=0.45 → ×0.45`；强光里按 Tab：`burn=0.45 stagger=0.15 → ×0.30（已触底）`；走开 4 s：`无惩罚（×1.00）`，`CurrentSpeed` 回到 **3.20 m/s**；
+- 血归零：`freeze=0.00 dead=0.00 → ×0.00（硬锁）` → 7 s 后自动回检查点、`IsDead=False`、血 99、`无惩罚`。
+
+### 26.2 灼伤可视化（HUD）
+
+以前「在光里被烧」只有掉血 + 变慢，画面没有任何提示。新增 `HUD_BurnFrame`（`NightbornHud`）：
+- 复用手搓的**窄边框**贴图（与「围猎」同一张），但颜色用**暖琥珀** `#E0A44B`、脉动 **0.9 Hz**（围猎是冷灰 `#7A8A8F` / 2.2 Hz）——色相、节奏都分得开；
+- `burnFrameMax = 0.24`（第一版 0.34 盖得太满，实测截图后下调）；`IsBurning` 一帧翻转即淡出；
+- 实测：灯下 `a≈0.19–0.24`、暗处 `a=0.000`。
+
+### 26.3 设置菜单（新功能）
+
+| 文件 | 内容 |
+| --- | --- |
+| **新** `Runtime/Settings/NightbornSettings.cs` | 数据 + 静态总控：`Load/Apply/Save/ResetToDefaults`、`.tmp → File.Replace → .bak` 原子写、`FromJsonOverwrite`（缺键保留默认）、坏档回退并警告、`[RuntimeInitializeOnLoadMethod(BeforeSceneLoad)]` 启动即生效、三个事件 `OnVolumeChanged/OnSensitivityChanged/OnDisplayChanged`、`HasSensitivity`（只有文件里真出现过该键才压过场景序列化值） |
+| **新** `Runtime/UI/SettingsPanel.cs` | 纯代码 uGUI：74% 黑遮罩 + 1240×820 面板；手搓 Slider / Toggle / `‹ 值 ›` 档位器；默认选中「返回」；`EnforceSelection()` 每帧把 EventSystem 选中项锁在面板内；写盘节流 0.45 s，关闭/退出/失焦都 flush |
+| `Menu/NightbornMenu.cs` | 顶部动作行 **2 → 3 个按钮同行**（`继续/全部通关` · `新的夜晚` · **`设置`**，y=214 不变，横向重排成与网格同宽 ±580）；Esc 优先级变成「确认框 → 设置面板 → 退出」；底噪 = `menuAmbienceVolume × Master` |
+| `Audio/NightbornAudio.cs` | `Play()=sfx×Master×gain`、`PlayOn()=gain×Master`、drone=`ambient×Master`；合成逻辑与三个固定增益（0.28/0.7/0.35）一个没动；失焦 `mute` 仍压过设置 |
+| `Camera/ThirdPersonCamera.cs` | `sensitivity` 字段名与序列化保留；取值优先级 **设置里明确改过 > 场景序列化 > 0.16**；新增 `invertY` |
+
+设置文件：`%USERPROFILE%\AppData\LocalLow\NightbornStudio\Nightborn\nightborn_settings.json`（**清档不会删它**）。键：`version/master/ambient/sfx/sensitivity/invertY/quality/fullscreen/width/height`。
+
+真机实测：
+- 菜单三个按钮同行、布局无新增重叠（截图 `Assets/Screenshots/28_menu_settings_button.png`）；
+- 面板显示 主音量 100% / 环境 30% / 音效 63% / 灵敏度 0.16 / 反转Y 关 / 画质 Ultra（‹ ›）/ 全屏 开 / 分辨率 1920×1080（‹ ›），底部「恢复默认 / 返回」，footer 显示存档文件名（截图 `29_settings_panel.png`）；
+- 拖主音量到 0.5 → `Master=0.5`、菜单底噪 `AudioSource.volume=0.150`（0.3×0.5）、停手后 `SaveCount=1`、JSON 落盘；
+- 设置灵敏度 0.30 + 反转 Y → 关卡内 `ThirdPersonCamera.sensitivity=0.30`、`_invertY=True`（事件即时生效）；
+- `FlushIfDirty()` 落盘（补的兜底：原来只有面板开着才会写盘）。
+
+**没做**：键位重绑。工程里没有 `.inputactions`，十几个脚本直接读 `Keyboard.current`，`PerformInteractiveRebinding` 没有载体；要做先把输入全量迁到 action asset，属下一轮。
+
+### 26.4 夜巡犬气味遮挡（HANDOVER §8 第 4 条）
+
+`Bloodhound` 旧逻辑只看 3D 距离（10 m 内移动就 +0.55/s），**隔一栋楼也能闻到**。
+现在：胸口→胸口 `RaycastNonAlloc`（预分配 `RaycastHit[8]`，运行期零分配），遮挡层复用 `GuardAI.OccluderMask` 并**剔除 Player(8)/Guard(10)/Veil(9)** —— 薄幕是布，透气；实体墙挡气味。
+遮挡判定 0.2 s 节流并缓存；被挡 → 连 0.25 s 移动窗口一起清掉（不让墙后的位移攒到露头那帧结算）。
+半径 **10 → 8 m**：`Bootstrap` 只 `AddComponent<Bloodhound>()`，4 个场景 YAML 里硬存 `scentRange: 10`，所以新增 `maxScentRange=8` 在 `Awake` 里 `Clamp` —— **不用重建场景**也不会回退成 10。
+
+真机实测（教堂，`NPC_Hound_1` 站桩、玩家放 4 m 外）：
+- 无遮挡：`ScentBlocked=False`、`ScentRange=8`、`ScentRate=0.55`；
+- 中间插一个 1×3×1 的方块：`ScentBlocked=True`、`ScentBlocker=TEST_ScentBlocker`；
+- 把那个方块改到 `Veil` 层：`ScentBlocked=False`（幕不挡气味，符合「影身躲得过眼睛、躲不过气味」）。
+
+### 26.5 本轮附带修的
+
+| 问题 | 修法 |
+| --- | --- |
+| 单敌人关卡（S01）的「被发现→回检查点」被跳过 | 上一项「吸血」把唯一的守卫吸睡后，`WalkthroughTest` 会**强行叫醒**最近的敌人（反射 `FeedTarget._sleepTimer=0` + `ResetAlert()`）再测，不再误判「本关没有敌人」。S01 现在 **12/0/0** |
+| 检查点断言把「贴地复活」读成 0.97 m 偏差 | 断言改成只比水平面距离（`y` 被贴地逻辑故意改过） |
+| 敌人贴到身上反而「看不见」 | `GuardAI.VisionCheck()` 在极近距离会被视锥角挡掉（实测 0.68 m / 39.8° > 半角 17.5°），敌人绕着你转却抓不到。新增「贴身即看见」：`dist <= max(0.8, catchDistance*0.8)` 直接返回 true |
+| NavMesh 还没烘就建 Agent 的警告 | `Failed to create agent because there is no valid NavMesh` 刷一条，敌人要等 `EnsureOnNavMesh` 重试才复位。给 `NavMeshRuntimeBake` 加 `[DefaultExecutionOrder(-1000)]`，烘焙排到所有 `Awake` 之前，警告消失 |
+| 自检夹具：敌人自己扫视把视线转开 | `WalkthroughTest` 在等待「被发现→被抓」期间每帧把敌人摆回「盯着玩家」（航点钉在自己身上会触发原地扫视，4 s 后方位角 57.8°，站桩玩家永远不被看见）。教堂 S02 因此从 `10/1/1` 变成 **`11/0/1`** |
+| 自检夹具：站位看不到 / 走不过去 | 「被发现」项在传送后会检查「眼→胸射线通 + NavMesh 能走到」，不通就绕敌人左右各挪 20°，最多 8 档 |
+
+---
+
+## 27. 2026-11-12 交接（本轮收尾）
+
+### 27.1 文档重写
+
+| 文件 | 变化 |
+| --- | --- |
+| `HANDOVER.md` | **整份重写**（352 行）。结构：§0 三条硬规矩 → §1 一分钟现状 → §2 连上/跑/验（含新的验收三件套与**分关卡类型的期望读数**）→ §3 内容地图 → §4 参数表（补了移速惩罚模型/气味遮挡/设置）→ **§5 协作方式（先查现成方案 + 多子 agent 分工 + 主 agent 验收清单 + 工程约定）** → §6 坑 → §7 约定 → §8 待办 → §9 文档与资产地图 → §10 交接尾巴 |
+| `README.md` | 去掉已删除的 `HANDOVER.docx` 行；补「验收工具」「存档与设置」两节；指向 §2.4 的数字口径 |
+| `THIRD_PARTY.md` | 修正失效交叉引用（`§8.1` → `§5.1`）；新增 §〇「本轮无新增外部代码」四条结论；补记漏登的 `com.unity.feature.development` |
+| `.gitignore` | 修掉一行 **GBK 乱码注释**（`# Nightborn 鍐呴儴浜х墿` → `# Nightborn 内部产物`）；补 `.vscode/`、`.history/`、`*.unitypackage`/`*.apk`/`*.aab`/`*.app`/`*.ipa`、`[Ee]xportedObj/`、`*.tmp`、`Assets/AssetStoreTools*` 等 |
+| `.gitattributes` | **新建**：`*.cs text eol=lf diff=csharp`、Unity YAML（`.unity/.prefab/.asset/.mat/.controller/.anim`）走 `merge=unityyamlmerge eol=lf`、`*.png` 等二进制 |
+
+### 27.2 仓库清理（`git status` 现在 80 项：59 改 / 14 新 / 7 删）
+
+| 处理 | 对象 | 理由 |
+| --- | --- | --- |
+| 删 | `Assets/Scenes/`（空目录）+ `Assets/Scenes.meta` | 早期遗留空目录；`.meta` 是孤儿（指向不存在的目录） |
+| 删 | `Assets/Screenshots/menu_play.png`、`menu_v2.png`（各带 `.meta`） | 与 `ch01_s01.png`、`menu_restored.png` **字节完全相同**（MD5 一致），纯重复 |
+| 删 | `Assets/Screenshots/27_burn_frame_on.png`（带 `.meta`） | 灼伤框**调色前**的中间态（alpha 0.34），已被 `27_burn_frame_light`（0.24）取代 |
+| 删 | `Assets/Screenshots/screenshot-20261111-223034.png`（带 `.meta`） | 1056×448 **纯黑空帧**，Unity 焦点丢失时的误产物 |
+| 保留 | 其余 34 张截图 | 都是里程碑证据（见 HANDOVER §9 的分类清单） |
+
+审计同时确认：**孤儿 `.meta` 0 个、缺 `.meta` 0 个、空目录 0 个、`.bak/.orig/.rej` 0 个、工具缓存目录 0 个、已跟踪但被忽略的文件 0 个**，11 个 `.unity` 与 `EditorBuildSettings` 的 11 条记录一一对应。
+
+### 27.3 交接文档被校验出并修掉的错（第二代校验者的产出）
+
+派了一个子 agent 专门拿新文档对照代码核，抓到 7 处硬错 + 6 处缺漏，全部已改：
+
+| 原写法 | 实际 | 现在 |
+| --- | --- | --- |
+| 运行时 9,321 行 / 编辑器 1,772 行 | PowerShell 5.1 的 `Get-Content` 按 GBK 解码 UTF-8，**吞了约 6% 换行**；字节级 LF 是 9,877 / 1,896 | 改成 9,877 / 1,896，并在 §5.4 加「数行数别信 `Get-Content`，数 `0x0A`」 |
+| 截图「按里程碑命名 `22–24_*`/`25_*`」 | 这些前缀**一个文件都没有** | 改成按真实文件名分类（M0–M2 / §22 / §23–24 / §25–26 四组） |
+| 「每关 1 处遗物 + 1 个出口（终章除外）」 | 终章**遗物和出口都没有**，与 §2.4 的 9/0/3 自相矛盾 | 改成「终章两者皆无，靠三段仪式结关」，并补齐各关检查点 1 的坐标 |
+| 守卫视锥「65–75°」 | 场景只用 65°/70°；75° 是没人用的脚本默认值 | 改成 65–70°（默认 75） |
+| 「源码混用 LF/CRLF」 | 44 个 `.cs` 里 42 个纯 LF，只有 `NightbornEditorGuard.cs` 与 `Pushable.cs` 残留 3 个孤立 CR | 精确到这两个文件 |
+| 「不要用 `FindObjectsByType`（Unity 6）」 | 该 API **2022.2+ 就有**，工程里 `LightExposureProbe` 已在用 | 只保留 `linearVelocity` / `Awaitable` 是真 Unity 6 |
+| 「`MCPForUnity.UseHttpTransport` 必须是 0」 | 本机注册表里**没有**这个值，且包内默认是 **true** | 改成条件句「连不上时把它置 0」，并补 8080/6400 的关系 |
+| `THIRD_PARTY.md` 引用 `HANDOVER §8.1` | §8 是「下一轮做什么」，规则在 §5.1 | 改 §5.1（DEVLOG §24.3 的 `§8.2`、§26.4 的 `§25.7` 也一并改对） |
+
+还补了：`Logs/rebuild.log` 当前不存在（只有跑过命令行构建才有）、工作树真实数字（80 项）、命名前缀全表（`P_` 标「暂无」）、`NightbornEditorGuard` 仍在校验已删除的 `PLAYER_Lantern`（**每关必报的假故障**）、看守的 `turnSpeed 70` / `catchDistance 2.0`。
+
+### 27.4 给下一任的两条工作方法（已写进 HANDOVER §5）
+
+1. **不熟悉的功能先查现成方案**：GitHub / 官方示例 / Asset Store / 本机 `rea-agents` MCP；只有「找不到 / 许可证不兼容 / 耦合过深」才自己写，并在代码注释里写明原因、把来源记进 `THIRD_PARTY.md`。
+2. **复杂任务拆成多个简单任务、开多个子 agent**：按**文件域**切分互不重叠；子 agent 一律**禁用 unity MCP**（只有一个编辑器实例），只做读码+改码+给验证清单；**主 agent 独占真机**，负责定验收口径、自己不采信「编译通过」、逐条判定并写回 DEVLOG。本轮就是按这个分工一轮修掉 40+ 缺陷。

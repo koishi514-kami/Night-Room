@@ -17,8 +17,8 @@ namespace Nightborn.Player
         [Header("光源")]
         [Tooltip("角色的自发光点光源，留空会自动在子节点里找。")]
         [SerializeField] private Light glowLight;
-        [SerializeField] private float radius = 3f;
-        [SerializeField] private float intensity = 1.6f;
+        [SerializeField] private float radius = 3.5f;
+        [SerializeField] private float intensity = 0.9f;
         [SerializeField] private Color color = new Color(0.878f, 0.643f, 0.294f, 1f);
 
         [Header("阴影")]

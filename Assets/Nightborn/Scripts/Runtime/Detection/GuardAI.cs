@@ -90,6 +90,23 @@ namespace Nightborn.Detection
         private float _lookAround;
         private Vector3 _lastKnown;
 
+        private bool _dormant;
+
+        /// <summary>被吸血 / 剧情强制休眠：停巡逻、熄视线锥、清警觉。</summary>
+        public void SetDormant(bool dormant)
+        {
+            _dormant = dormant;
+            if (dormant)
+            {
+                _progress = 0f;
+                _state = State.Patrol;
+                CanSeePlayer = false;
+            }
+            if (coneLight != null) coneLight.enabled = !dormant;
+        }
+
+        public bool IsDormant => _dormant;
+
         public float Progress => _progress;
         public State CurrentState => _state;
         public bool CanSeePlayer { get; private set; }
@@ -148,6 +165,8 @@ namespace Nightborn.Detection
                 Resolve();
                 if (_player == null) return;
             }
+
+            if (_dormant) return;
 
             float dt = Time.deltaTime;
             CanSeePlayer = VisionCheck();

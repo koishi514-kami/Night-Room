@@ -5,7 +5,7 @@ using Nightborn.Player;
 namespace Nightborn.DebugTools
 {
     /// <summary>
-    /// F1 自检浮层（M0 已接入检测度 / 血瓶 / 遗物）。
+    /// F1 自检浮层（M0/M1 已接入检测度、血瓶、血视、遗物）。
     /// 正式 HUD 按 HANDOVER §12 决策 21 是"混合形态"，这个浮层只做开发期读数。
     /// </summary>
     public class NightbornDebugHud : MonoBehaviour
@@ -19,6 +19,7 @@ namespace Nightborn.DebugTools
         private BloodSystem _blood;
         private DetectionMeter _detection;
         private ShiftForm _shift;
+        private BloodSight _sight;
         private Level.LevelFlow _flow;
         private GUIStyle _style;
         private string _lastError = "";
@@ -31,6 +32,7 @@ namespace Nightborn.DebugTools
             _blood = FindObjectOfType<BloodSystem>();
             _detection = FindObjectOfType<DetectionMeter>();
             _shift = FindObjectOfType<ShiftForm>();
+            _sight = FindObjectOfType<BloodSight>();
             _flow = FindObjectOfType<Level.LevelFlow>();
             Application.logMessageReceived += OnLog;
         }
@@ -83,9 +85,17 @@ namespace Nightborn.DebugTools
                     _shift != null && _shift.IsShadow ? "  <color=#B07BFF>影身 " + _shift.ShadowRemaining.ToString("F1") + "s</color>" : "")
                 : "<color=#FFB86B>未找到 LightExposureProbe</color>";
 
+            string sightText = _sight == null
+                ? "?"
+                : _sight.IsActive
+                    ? "<color=#FF6B6B>开启 " + _sight.ActiveRemaining.ToString("F1") + "s</color>"
+                    : _sight.CooldownRemaining > 0f
+                        ? "冷却 " + _sight.CooldownRemaining.ToString("F0") + "s"
+                        : "<color=#7ADF9B>就绪</color>";
+
             string bloodLine = _blood != null
-                ? string.Format("血储 {0:F1}/{1:F0}  血瓶 {2}{3}",
-                    _blood.Current, _blood.Max, _blood.Vials,
+                ? string.Format("血储 {0:F1}/{1:F0}  血瓶 {2}  血视 {3}{4}",
+                    _blood.Current, _blood.Max, _blood.Vials, sightText,
                     _blood.IsDead ? "  <color=#FF6B6B>死亡</color>" : "")
                 : "<color=#FFB86B>未找到 BloodSystem</color>";
 

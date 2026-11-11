@@ -274,10 +274,11 @@ namespace Nightborn.EditorTools
             soDouse.ApplyModifiedPropertiesWithoutUndo();
 
             // ---------- 守卫（航点巡逻 + 视线锥） ----------
+            // 开阔带：避开 BLD_A(z>=0)、BLD_B(x>=4) 和矮墙(z=-4)，否则守卫会穿墙走
             Vector3[] wpPos =
             {
-                new Vector3(-6f, 0f, -10f), new Vector3(6f, 0f, -10f),
-                new Vector3(6f, 0f, 10f), new Vector3(-6f, 0f, 10f)
+                new Vector3(-2f, 0f, -14f), new Vector3(2f, 0f, -14f),
+                new Vector3(2f, 0f, -8f), new Vector3(-2f, 0f, -8f)
             };
             var wps = new Transform[wpPos.Length];
             for (int i = 0; i < wpPos.Length; i++)
@@ -289,7 +290,7 @@ namespace Nightborn.EditorTools
             }
 
             var guard = new GameObject("NPC_Guard_1");
-            guard.transform.position = new Vector3(-6f, 0f, -10f);
+            guard.transform.position = new Vector3(-2f, 0f, -14f);
             var gBody = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             gBody.name = "GUARD_Body";
             gBody.transform.SetParent(guard.transform, false);
@@ -316,6 +317,11 @@ namespace Nightborn.EditorTools
                 wpProp.GetArrayElementAtIndex(i).objectReferenceValue = wps[i];
             soGuard.FindProperty("coneLight").objectReferenceValue = cone;
             soGuard.ApplyModifiedPropertiesWithoutUndo();
+            var feedTarget = guard.AddComponent<Nightborn.Level.FeedTarget>();
+            var soFeed = new SerializedObject(feedTarget);
+            soFeed.FindProperty("guard").objectReferenceValue = guardAI;
+            soFeed.FindProperty("bodyVisual").objectReferenceValue = gBody.transform;
+            soFeed.ApplyModifiedPropertiesWithoutUndo();
 
             // ---------- 检查点 ----------
             MakeCheckpoint(envRoot, 0, new Vector3(0f, 0f, -16f));
@@ -336,7 +342,7 @@ namespace Nightborn.EditorTools
             // ---------- 血之遗物 ----------
             var relicGo = new GameObject("PROP_Relic_1");
             relicGo.transform.SetParent(envRoot, false);
-            relicGo.transform.position = new Vector3(-12f, 1f, 6f);
+            relicGo.transform.position = new Vector3(-13f, 1f, 16f);
             var relicCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
             relicCube.name = "RELIC_Body";
             relicCube.transform.SetParent(relicGo.transform, false);
@@ -424,8 +430,8 @@ namespace Nightborn.EditorTools
             var glowLight = glowGo.AddComponent<Light>();
             glowLight.type = LightType.Point;
             glowLight.color = C_Candle;
-            glowLight.intensity = 1.6f;
-            glowLight.range = 3f;
+            glowLight.intensity = 0.9f;
+            glowLight.range = 3.5f;
             glowLight.shadows = LightShadows.Soft;
             glowLight.shadowStrength = 0.8f;
             glowLight.shadowCustomResolution = 512;
@@ -458,6 +464,14 @@ namespace Nightborn.EditorTools
             soShift.ApplyModifiedPropertiesWithoutUndo();
 
             player.AddComponent<Nightborn.Interaction.PlayerInteractor>();
+            // M1：吸血与血视
+            var feeder = player.AddComponent<Nightborn.Player.PlayerFeeder>();
+            var soFeeder = new SerializedObject(feeder);
+            soFeeder.FindProperty("blood").objectReferenceValue = bloodSystem;
+            soFeeder.FindProperty("motor").objectReferenceValue = motor;
+            soFeeder.ApplyModifiedPropertiesWithoutUndo();
+
+            player.AddComponent<Nightborn.Player.BloodSight>();
 
             // 关卡流程
             var flowGo = new GameObject("LEVEL_Flow");

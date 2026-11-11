@@ -25,6 +25,8 @@
 | Stencil see-through（Divinity 式穿墙显形） | https://discussions.unity.com/t/stencil-see-through-effect/782486 | 论坛讨论 | Stencil + RenderObjects 做"遮挡物半透明/剪影" | **血视**的候选实现路线 |
 | Show Objects Through Walls with URP Render Objects | https://www.youtube.com/watch?v=PM4MVgP1f0w | 教学视频 | URP Render Objects + 自定义 Shader 显示墙后物件 | 血视的备选方案 |
 | How to Build Realistic AI Perception and Memory in Unity | https://www.youtube.com/watch?v=IspRyEDPCgM | 教学视频 | 按 Game AI Pro 的 "Target Tracks" 做**感知 + 记忆**（不完美信息） | 巡逻/围猎记忆的参考 |
+| HUD Indicator v2（Hexloot-Games / lincolncpp） | https://github.com/Hexloot-Games/hud-Indicator | **MIT** | 屏幕内 icon / 出屏贴边箭头 / 距离标签一体的目标指示器；世界坐标→屏幕坐标→夹到内缩矩形边缘的算法 | **只借算法**。v2 要求 Unity 6（本工程 2022.3），且靠 prefab + 图标资源驱动；本项目场景与 HUD 全代码生成、美术资产为 0，引入反而增加 prefab 依赖 → 按 HANDOVER §8.1「耦合过深」自己写了一个 40 行的 `ObjectiveHud` |
+| off-screen-indicator（jinincarnate） | https://github.com/jinincarnate/off-screen-indicator | **GPL-3.0** | 同上（箭头/方框指示器 + Target 组件） | **未采用**：GPL-3.0 与本工程商业发行不兼容 |
 
 ---
 

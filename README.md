@@ -1,72 +1,35 @@
-# Nightborn《夜裔·血月临城》
+# Nightborn《夜裔 · 血月临城》
 
-哥特风 3D 吸血鬼潜行解谜。当前进度：**第 1 阶段 — 基础场景（灰盒 + 可走玩家 + 提灯跟随）**。
+Unity 3D 哥特吸血鬼潜行解谜。玩家 Ada 自带一圈 3.5 m 柔光（走哪照哪），靠熄灯 / 推箱遮光 / 压光药剂
+在暗处穿行，吸夜巡者的血续命，被看见就会被围猎。
+
+**接手先读 [`HANDOVER.md`](HANDOVER.md)** —— 给接手的 AI 写的现状说明书：怎么连、怎么跑、怎么验、有哪些坑。
+本文件只留最少的入口信息。
 
 ## 环境
 
 | 项 | 值 |
 | --- | --- |
-| Unity | 2022.3.34f1c1 |
-| 渲染管线 | URP 14.0.6（Forward+，HDR，MSAA 4x，renderScale 1） |
-| 输入 | Input System 1.7.0（activeInputHandler = Both） |
-| 目标平台 | Windows / 1080p / 60fps |
+| Unity | **2022.3.34f1c1**（必须同版本，换版本会重序列化 URP 资产） |
+| 工程路径 | `D:\unity\Nightborn` |
+| 管线 / 输入 | URP（Forward+ / HDR / MSAA 4× / Linear）· Input System 1.7.0（Active Handling = Both） |
+| 目标平台 | Windows / 1920×1080 / 60 fps |
 
-打开方式：Unity Hub → Add project from disk → `D:\Unity\Nightborn` → 打开 `Assets/Nightborn/Scenes/L_Ch01_S01_Street.unity` → Play。
+## 跑起来
 
-## 操作
+1. Unity Hub 打开工程，等编译完成；
+2. 点 **Play** → 默认进主菜单 `L_Main`（这是产品行为，不是空场景），在菜单里选关；
+3. 想直接调某一关：先打开该关卡场景，再点菜单 **`Nightborn → Play 当前场景`（F5）**；
+4. 关卡内按 **F1** 来自检浮层；**Esc** 只释放鼠标。
 
-| 按键 | 行为 |
+> 玩家身上的光源是「自体光」（`Player/SelfGlow.cs`）。早期方案里的提灯 / `LanternFollow` **已废弃删除**，
+> 看到旧文档提到提灯一律按过期处理。
+
+## 文档
+
+| 文件 | 内容 |
 | --- | --- |
-| W A S D | 以相机朝向为基准移动（walk 3.2 m/s） |
-| Shift | 潜行（1.3 m/s） |
-| 鼠标移动 | 转动第三人称相机（pitch 限 -25°~55°） |
-| 滚轮 | 相机距离 2.0–6.0 m |
-| **Tab** | **化形**：切影身（熄自体光、可穿薄幕，6 秒 / 冷却 8 秒） |
-| **E** | **上下文交互**：吹灭街灯、拾取血之遗物 |
-| F1 | 调试浮层 |
-
-提灯挂在玩家身上，由 `LanternFollow` 以 0.12 s 阻尼跟随，光强在 1.6 基础上做 Perlin 抖动（±0.12），模拟烛火。**自 P0-1 起提灯投实时软阴影**（512 贴图，由 `LanternFollow.castShadows` 控制，改 Inspector 的 Light 组件无效）。
-
-按 **F1** 打开自检浮层，其中「光照 / 灼伤 / 移速倍率」一行即 P0-1 的光照即地形判定：站在街灯 4.8 m 内会被灼伤（移速 ×0.45），躲到货箱或建筑后面立刻解除。
-
-## 目录约定
-
-```
-Assets/Nightborn/
-  Scenes/     L_<章节>_<关卡>_<场景>.unity
-  Scripts/    Runtime/{Player,Camera,...}、Editor/
-  Materials/  M_<名称>.mat
-  Settings/   Nightborn_URP.asset、Nightborn_Renderer.asset、VP_Global.asset
-  Prefabs/    P_<名称>.prefab
-  Art/Graybox/
-```
-
-## 美术与光照基线（全关卡共用）
-
-五色限定：Ink `#0E0F12`、Blood `#8B1E28`、Candle `#E0A44B`、Iron `#4A4F57`、Mist `#7A8A8F`。
-
-- 月光：冷色 `(0.55, 0.68, 0.85)`，强度 0.8，Soft 阴影 2048，角度 `Euler(55, -30, 0)`
-- 环境光：Flat `(0.15, 0.16, 0.20)`；指数平方雾 density 0.012，色 Mist
-- 街灯：点光 2.2 强度 / 9 m / 不投阴影，灯球自发光 Candle
-- 后处理 VP_Global：ACES Tonemapping、Bloom(0.6/0.9/0.7)、Vignette(0.35/0.4)、ColorAdjustments(postExposure -0.2, saturation -15, contrast 8)
-
-## 场景内容（L_Ch01_S01_Street）
-
-90×60 石板路面 + 两侧人行道；街两侧各 5 栋血砖楼（高 9/10/12/13/15，带铁灰腰线）；跨街拱桥（柱 ±8.5，梁 y=11）；6 盏街灯、6 个货箱；北端门洞为目标出口。玩家 `PLAYER_Ada` 用 CharacterController（高 1.8 / 半径 0.34）驱动。
-
-## 重建场景
-
-改完 `Scripts/Editor/NightbornBootstrap.cs` 后，菜单 **Nightborn → Build Base Scene** 可整场景重建（幂等，重建会覆盖 `L_Ch01_S01_Street.unity`）。命令行：
-
-```
-Unity.exe -batchmode -projectPath D:\Unity\Nightborn ^
-  -executeMethod Nightborn.EditorTools.NightbornBootstrap.BuildAll ^
-  -logFile build.log
-```
-
-## 下一步
-
-1. ~~提灯实时阴影 + "光照即地形"~~ ✅（已按新设计改为**自体光**，见 `SelfGlow`）
-2. ~~血储 / 暴露度~~ ✅（血储=生命值；暴露度改为**检测度**，由守卫视线驱动）
-3. ~~Tab 化形~~ ✅（影身=灭光+穿薄幕，6 s / 冷却 8 s）
-4. 第 1 关 5 分钟闭环：吸血交互、血视、推箱与压光药剂、选关 UI（详见 `HANDOVER.md` §13.4）
+| `HANDOVER.md` | **现状 / 操作 / 坑 / 参数表 —— 接手必读** |
+| `HANDOVER_DEVLOG.md` | 实施过程与原始验证记录（§0–§9 是 M0 前的旧交接，**已作废**） |
+| `THIRD_PARTY.md` | 外部来源与许可（引入任何 GitHub 代码前先查 LICENSE 并抄进去） |
+| `HANDOVER.docx` | 2026-11-06 旧 Word 版，**已过期，不要参考** |

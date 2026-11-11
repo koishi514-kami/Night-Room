@@ -287,67 +287,24 @@ namespace Nightborn.EditorTools
             soDouse.FindProperty("bulbs").GetArrayElementAtIndex(0).objectReferenceValue = bulb.GetComponent<Renderer>();
             soDouse.ApplyModifiedPropertiesWithoutUndo();
 
-            // ---------- 守卫（航点巡逻 + 视线锥） ----------
-            // 开阔带：避开 BLD_A(z>=0)、BLD_B(x>=4) 和矮墙(z=-4)，否则守卫会穿墙走
-            Vector3[] wpPos =
-            {
-                new Vector3(-2f, 0f, -14f), new Vector3(2f, 0f, -14f),
-                new Vector3(2f, 0f, -8f), new Vector3(-2f, 0f, -8f)
-            };
-            var wps = new Transform[wpPos.Length];
-            for (int i = 0; i < wpPos.Length; i++)
-            {
-                var go = new GameObject("GUARD_WP_" + (i + 1));
-                go.transform.SetParent(envRoot, false);
-                go.transform.position = wpPos[i];
-                wps[i] = go.transform;
-            }
+            // ---------- 敌人 ----------
+            // 开阔带：避开 BLD_A(z>=0)、BLD_B(x>=4) 和矮墙(z=-4)
+            MakeGuard(envRoot, "NPC_Guard_1", new Vector3(-2f, 0f, -14f),
+                new[]
+                {
+                    new Vector3(-2f, 0f, -14f), new Vector3(2f, 0f, -14f),
+                    new Vector3(2f, 0f, -8f), new Vector3(-2f, 0f, -8f)
+                },
+                mist, 1.6f, 65f, 11f, false);
 
-            int guardLayer = LayerMask.NameToLayer("Guard");
-            var guard = new GameObject("NPC_Guard_1");
-            guard.layer = guardLayer;
-            guard.transform.position = new Vector3(-2f, 0f, -14f);
-            var gBody = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            gBody.name = "GUARD_Body";
-            gBody.transform.SetParent(guard.transform, false);
-            gBody.transform.localPosition = new Vector3(0f, 0.9f, 0f);
-            gBody.transform.localScale = new Vector3(0.62f, 0.9f, 0.62f);
-            gBody.GetComponent<Renderer>().sharedMaterial = mist;
-
-            var coneGo = new GameObject("GUARD_Cone");
-            coneGo.transform.SetParent(guard.transform, false);
-            coneGo.transform.localPosition = new Vector3(0f, 1.6f, 0f);
-            var cone = coneGo.AddComponent<Light>();
-            cone.type = LightType.Spot;
-            cone.range = 12f;
-            cone.spotAngle = 65f;
-            cone.intensity = 1.2f;
-            cone.color = C_Candle;
-            cone.shadows = LightShadows.None;
-
-            var guardAI = guard.AddComponent<Nightborn.Detection.GuardAI>();
-            var soGuard = new SerializedObject(guardAI);
-            var wpProp = soGuard.FindProperty("waypoints");
-            wpProp.arraySize = wps.Length;
-            for (int i = 0; i < wps.Length; i++)
-                wpProp.GetArrayElementAtIndex(i).objectReferenceValue = wps[i];
-            soGuard.FindProperty("coneLight").objectReferenceValue = cone;
-            soGuard.ApplyModifiedPropertiesWithoutUndo();
-            var agent = guard.AddComponent<UnityEngine.AI.NavMeshAgent>();
-            agent.speed = 1.6f;
-            agent.angularSpeed = 150f;
-            agent.acceleration = 6.4f;
-            agent.radius = 0.3f;
-            agent.height = 1.8f;
-            agent.stoppingDistance = 0.2f;
-            agent.autoBraking = true;
-
-            var feedTarget = guard.AddComponent<Nightborn.Level.FeedTarget>();
-            var soFeed = new SerializedObject(feedTarget);
-            soFeed.FindProperty("guard").objectReferenceValue = guardAI;
-            soFeed.FindProperty("bodyVisual").objectReferenceValue = gBody.transform;
-            soFeed.ApplyModifiedPropertiesWithoutUndo();
-
+            // 执灯修士：北侧走廊，灯照范围大、吹不灭
+            MakeGuard(envRoot, "NPC_Monk_1", new Vector3(2f, 0f, 2f),
+                new[]
+                {
+                    new Vector3(2f, 0f, 2f), new Vector3(-2f, 0f, 2f),
+                    new Vector3(-2f, 0f, 10f), new Vector3(2f, 0f, 10f)
+                },
+                iron, 1.3f, 45f, 9f, true);
             // ---------- 检查点 ----------
             MakeCheckpoint(envRoot, 0, new Vector3(0f, 0f, -16f));
             MakeCheckpoint(envRoot, 1, new Vector3(0f, 0f, 2f));
@@ -535,6 +492,94 @@ namespace Nightborn.EditorTools
             var so = new SerializedObject(cp);
             so.FindProperty("index").intValue = index;
             so.ApplyModifiedPropertiesWithoutUndo();
+        }
+        /// <summary>生成一个敌人：机身 + 视线锥 + GuardAI + NavMeshAgent + 可吸目标（可选提灯）。</summary>
+        private static GameObject MakeGuard(Transform parent, string name, Vector3 position, Vector3[] waypointPositions,
+            Material bodyMaterial, float patrolSpeed, float viewAngle, float viewDistance, bool withLantern)
+        {
+            int guardLayer = LayerMask.NameToLayer("Guard");
+
+            var ways = new Transform[waypointPositions.Length];
+            for (int i = 0; i < waypointPositions.Length; i++)
+            {
+                var wp = new GameObject(name + "_WP_" + (i + 1));
+                wp.transform.SetParent(parent, false);
+                wp.transform.position = waypointPositions[i];
+                ways[i] = wp.transform;
+            }
+
+            var guard = new GameObject(name);
+            guard.layer = guardLayer;
+            guard.transform.position = position;
+
+            var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            body.name = "GUARD_Body";
+            body.transform.SetParent(guard.transform, false);
+            body.transform.localPosition = new Vector3(0f, 0.9f, 0f);
+            body.transform.localScale = new Vector3(0.62f, 0.9f, 0.62f);
+            body.GetComponent<Renderer>().sharedMaterial = bodyMaterial;
+            body.layer = guardLayer;
+
+            var coneGo = new GameObject("GUARD_Cone");
+            coneGo.transform.SetParent(guard.transform, false);
+            coneGo.transform.localPosition = new Vector3(0f, 1.6f, 0f);
+            var cone = coneGo.AddComponent<Light>();
+            cone.type = LightType.Spot;
+            cone.range = viewDistance + 1f;
+            cone.spotAngle = viewAngle;
+            cone.intensity = 1.2f;
+            cone.color = C_Candle;
+            cone.shadows = LightShadows.None;
+
+            var ai = guard.AddComponent<Nightborn.Detection.GuardAI>();
+            var so = new SerializedObject(ai);
+            var wpProp = so.FindProperty("waypoints");
+            wpProp.arraySize = ways.Length;
+            for (int i = 0; i < ways.Length; i++)
+                wpProp.GetArrayElementAtIndex(i).objectReferenceValue = ways[i];
+            so.FindProperty("coneLight").objectReferenceValue = cone;
+            so.FindProperty("patrolSpeed").floatValue = patrolSpeed;
+            so.FindProperty("viewAngle").floatValue = viewAngle;
+            so.FindProperty("viewDistance").floatValue = viewDistance;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            var agent = guard.AddComponent<UnityEngine.AI.NavMeshAgent>();
+            agent.speed = patrolSpeed;
+            agent.angularSpeed = 150f;
+            agent.acceleration = patrolSpeed * 4f;
+            agent.radius = 0.3f;
+            agent.height = 1.8f;
+            agent.stoppingDistance = 0.2f;
+            agent.autoBraking = true;
+
+            var feedTarget = guard.AddComponent<Nightborn.Level.FeedTarget>();
+            var soFeed = new SerializedObject(feedTarget);
+            soFeed.FindProperty("guard").objectReferenceValue = ai;
+            soFeed.FindProperty("bodyVisual").objectReferenceValue = body.transform;
+            soFeed.ApplyModifiedPropertiesWithoutUndo();
+
+            if (withLantern)
+            {
+                var lanternGo = new GameObject("MONK_Lantern");
+                lanternGo.transform.SetParent(guard.transform, false);
+                lanternGo.transform.localPosition = new Vector3(0.4f, 1.25f, 0.25f);
+                var lantern = lanternGo.AddComponent<Light>();
+                lantern.type = LightType.Point;
+                lantern.color = C_Candle;
+                lantern.intensity = 1.4f;
+                lantern.range = 5f;
+                lantern.shadows = LightShadows.Soft;
+                lantern.shadowStrength = 0.75f;
+                lantern.shadowCustomResolution = 512;
+
+                var monk = guard.AddComponent<Nightborn.Detection.LanternMonk>();
+                var soMonk = new SerializedObject(monk);
+                soMonk.FindProperty("lantern").objectReferenceValue = lantern;
+                soMonk.FindProperty("guard").objectReferenceValue = ai;
+                soMonk.ApplyModifiedPropertiesWithoutUndo();
+            }
+
+            return guard;
         }
         /// <summary>生成主菜单 / 选关场景（代码建 UI，无 prefab 依赖）。</summary>
         private static void BuildMenuScene()

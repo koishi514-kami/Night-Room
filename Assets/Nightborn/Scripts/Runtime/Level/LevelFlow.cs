@@ -70,10 +70,21 @@ namespace Nightborn.Level
             }
             _spawnPoint = player != null ? player.position : Vector3.zero;
             _spawnBlood = blood != null ? blood.Current : -1f;
+
+            // 血储归零也要走「被抓」的同一套回滚流程
+            if (blood != null) blood.Died += HandleBloodDeath;
+        }
+
+        private void HandleBloodDeath()
+        {
+            if (_complete || _resolving) return;
+            Debug.Log("[Nightborn] 血储归零 → 回检查点");
+            Caught(null);
         }
 
         private void OnDestroy()
         {
+            if (blood != null) blood.Died -= HandleBloodDeath;
             if (Instance == this) Instance = null;
         }
 

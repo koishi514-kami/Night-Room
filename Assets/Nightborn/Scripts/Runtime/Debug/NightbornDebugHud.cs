@@ -1,3 +1,4 @@
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Nightborn.Player;
@@ -7,11 +8,15 @@ namespace Nightborn.DebugTools
     /// <summary>
     /// F1 自检浮层（M0/M1 已接入检测度、血瓶、血视、遗物）。
     /// 正式 HUD 按 HANDOVER §12 决策 21 是"混合形态"，这个浮层只做开发期读数。
+    ///
+    /// 整个类用 `#if UNITY_EDITOR || DEVELOPMENT_BUILD` 包起来：发布构建里连 F1/F2 的按键监听、
+    /// `OnGUI` 字符串拼装和 `Application.logMessageReceived` 订阅都不参与编译（HANDOVER §5 第 8 条）。
     /// </summary>
     public class NightbornDebugHud : MonoBehaviour
     {
         [SerializeField] private bool visible = false; // 正式 HUD 在跑，调试浮层默认收起（F1 打开）
         [SerializeField] private Key toggleKey = Key.F1;
+        [SerializeField] private Key runTestKey = Key.F2;
 
         private PlayerMotor _motor;
         private LightExposureProbe _probe;
@@ -21,25 +26,37 @@ namespace Nightborn.DebugTools
         private ShiftForm _shift;
         private BloodSight _sight;
         private Level.LevelFlow _flow;
+        private UnityEngine.Camera _cam;
         private GUIStyle _style;
         private string _lastError = "";
+        private float _resolveTimer;
 
         private void Awake()
         {
-            _motor = FindObjectOfType<PlayerMotor>();
-            _probe = FindObjectOfType<LightExposureProbe>();
-            _glow = FindObjectOfType<SelfGlow>();
-            _blood = FindObjectOfType<BloodSystem>();
-            _detection = FindObjectOfType<DetectionMeter>();
-            _shift = FindObjectOfType<ShiftForm>();
-            _sight = FindObjectOfType<BloodSight>();
-            _flow = FindObjectOfType<Level.LevelFlow>();
+            Resolve();
             Application.logMessageReceived += OnLog;
         }
 
         private void OnDestroy()
         {
             Application.logMessageReceived -= OnLog;
+        }
+
+        /// <summary>
+        /// 只在 Awake 解析一次会漏：浮层比玩家早生成、或玩家中途被重建时，浮层会永远显示「未找到」。
+        /// 这里每秒补一次（找不到才补，找到就什么都不做）——比每帧 FindObjectOfType 便宜得多。
+        /// </summary>
+        private void Resolve()
+        {
+            if (_motor == null) _motor = FindObjectOfType<PlayerMotor>();
+            if (_probe == null) _probe = FindObjectOfType<LightExposureProbe>();
+            if (_glow == null) _glow = FindObjectOfType<SelfGlow>();
+            if (_blood == null) _blood = FindObjectOfType<BloodSystem>();
+            if (_detection == null) _detection = FindObjectOfType<DetectionMeter>();
+            if (_shift == null) _shift = FindObjectOfType<ShiftForm>();
+            if (_sight == null) _sight = FindObjectOfType<BloodSight>();
+            if (_flow == null) _flow = FindObjectOfType<Level.LevelFlow>();
+            _cam = UnityEngine.Camera.main;
         }
 
         private void OnLog(string condition, string stackTrace, LogType type)
@@ -50,7 +67,30 @@ namespace Nightborn.DebugTools
         private void Update()
         {
             var kb = Keyboard.current;
-            if (kb != null && kb[toggleKey].wasPressedThisFrame) visible = !visible;
+            if (kb != null)
+            {
+                if (kb[toggleKey].wasPressedThisFrame) visible = !visible;
+                if (kb[runTestKey].wasPressedThisFrame) RunWalkthrough();
+            }
+
+            _resolveTimer += Time.unscaledDeltaTime;
+            if (_resolveTimer < 1f) return;
+            _resolveTimer = 0f;
+            if (_motor == null || _flow == null || _cam == null) Resolve();
+        }
+
+        /// <summary>F2：跑一遍流程自检（等价于手动挂 WalkthroughTest）。</summary>
+        private void RunWalkthrough()
+        {
+            if (FindObjectOfType<WalkthroughTest>() != null)
+            {
+                Debug.Log("[TEST] 自检已经在跑，忽略这次 F2");
+                return;
+            }
+
+            var go = new GameObject("TEST_Walkthrough");
+            go.AddComponent<WalkthroughTest>();
+            Debug.Log("[TEST] F2 触发自检：" + gameObject.scene.name);
         }
 
         private void OnGUI()
@@ -67,7 +107,7 @@ namespace Nightborn.DebugTools
                 };
             }
 
-            var cam = UnityEngine.Camera.main;
+            var cam = _cam;
             string playerLine = _motor != null
                 ? string.Format("玩家 {0}  pos {1}  速度 {2:F2}  潜行 {3}",
                     _motor.name, _motor.transform.position.ToString("F2"), _motor.CurrentSpeed, _motor.IsSneaking)
@@ -76,6 +116,14 @@ namespace Nightborn.DebugTools
             string camLine = cam != null
                 ? string.Format("相机 {0}  pos {1}  FOV {2:F0}", cam.name, cam.transform.position.ToString("F2"), cam.fieldOfView)
                 : "<color=#FF6B6B>没有 MainCamera</color>";
+
+            // 2026-11-12：把「为什么变慢」直接摆出来。以前玩家只会感觉「突然走不动」，
+            // 但看不出是灼伤(burn)/硬直(stagger)/被抓冻结(freeze)/吸血(feed)/血储归零(dead) 哪一条。
+            string speedLine = _motor != null
+                ? (_motor.IsHardLocked
+                    ? "<color=#FF6B6B>移速 硬锁（不能动）</color>  " + _motor.SpeedModifierReport()
+                    : "移速 " + _motor.SpeedModifierReport())
+                : "<color=#FFB86B>未找到 PlayerMotor</color>";
 
             string lightLine = _probe != null
                 ? string.Format("外光 {0:F2}  {1}  自体光 {2}{3}",
@@ -104,24 +152,31 @@ namespace Nightborn.DebugTools
                 : "<color=#FFB86B>未找到 DetectionMeter</color>";
 
             string relicLine = _flow != null
-                ? string.Format("遗物 {0}/{1}  {2}", _flow.Relics, _flow.RelicTotal,
+                ? string.Format("遗物 {0}/{1}  检查点 {2}  {3}", _flow.Relics, _flow.RelicTotal,
+                    _flow.SpawnCheckpointIndex,
                     _flow.IsComplete ? "<color=#7ADF9B>通关</color>" : "")
                 : "";
+
+            string perfLine = string.Format("存档写盘 {0} 次（上次 {1:F1}ms）  NavMesh 烘焙 {2:F1}ms × {3}",
+                Nightborn.Level.SaveSystem.SaveCount,
+                Nightborn.Level.SaveSystem.LastSaveMs,
+                Nightborn.Level.NavMeshRuntimeBake.LastBakeMs,
+                Nightborn.Level.NavMeshRuntimeBake.BakeCount);
 
             string inputLine = Keyboard.current != null
                 ? "Input System 正常"
                 : "<color=#FF6B6B>Keyboard.current 为空</color>";
 
             string text = string.Format(
-                "<b>Nightborn 自检</b>  Unity {0}  {1:F0} fps  场景 <b>{2}</b>\n{3}\n{4}\n{5}\n{6}\n{7}\n{8}\n{9}\n<color=#9FA8B0>F1 隐藏本浮层</color>",
+                "<b>Nightborn 自检</b>  Unity {0}  {1:F0} fps  场景 <b>{2}</b>\n{3}\n{4}\n{5}\n{6}\n{7}\n{8}\n{9}\n{10}\n{11}\n<color=#9FA8B0>F1 隐藏本浮层　F2 跑一遍流程自检</color>",
                 Application.unityVersion,
                 1f / Mathf.Max(0.0001f, Time.smoothDeltaTime),
                 gameObject.scene.name,
-                playerLine, camLine, lightLine, bloodLine, detectLine, relicLine, inputLine);
+                playerLine, camLine, lightLine, speedLine, bloodLine, detectLine, relicLine, perfLine, inputLine);
 
             float errorHeight = string.IsNullOrEmpty(_lastError) ? 0f : 18f;
             float panelWidth = Mathf.Min(820f, Screen.width - 24f);
-            var rect = new Rect(12, 12, panelWidth, 210 + errorHeight);
+            var rect = new Rect(12, 12, panelWidth, 246 + errorHeight);
 
             GUI.color = new Color(0f, 0f, 0f, 0.62f);
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
@@ -173,3 +228,4 @@ namespace Nightborn.DebugTools
         }
     }
 }
+#endif

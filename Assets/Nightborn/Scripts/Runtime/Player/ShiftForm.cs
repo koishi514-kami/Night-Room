@@ -35,6 +35,10 @@ namespace Nightborn.Player
         private float _cooldownTimer;
         private float _staggerTimer;
         private int _playerLayer;
+        private bool _veilCollisionIgnoredBefore;
+
+        // 出幕时做重叠检测用的缓冲（每帧不分配）
+        private readonly Collider[] _overlap = new Collider[8];
 
         public bool IsShadow => _shadow;
         public bool IsStaggered => _staggerTimer > 0f;
@@ -48,7 +52,27 @@ namespace Nightborn.Player
             if (glow == null) glow = GetComponent<SelfGlow>();
             if (probe == null) probe = GetComponent<LightExposureProbe>();
             if (motor == null) motor = GetComponent<PlayerMotor>();
+
+            if (veilLayer < 0 || veilLayer > 31)
+            {
+                Debug.LogError("[Nightborn] ShiftForm.veilLayer 非法（" + veilLayer + "），回落到 9。");
+                veilLayer = 9;
+            }
+
             _playerLayer = gameObject.layer;
+            // 记下场景原本的设置：有些关卡可能本来就允许穿幕，别在退出影身时把它改掉。
+            _veilCollisionIgnoredBefore = Physics.GetIgnoreLayerCollision(_playerLayer, veilLayer);
+        }
+
+        private void OnDisable()
+        {
+            // IgnoreLayerCollision 是**全局物理设置**：影身状态下按 Esc 回菜单 / 切场景，
+            // 这个"Player↔Veil 不碰撞"会留到下一关——光身也能穿帘子。离开时必须还原。
+            SetVeilCollisionIgnored(false);
+            _shadow = false;
+            _timer = 0f;
+            _staggerTimer = 0f;
+            if (motor != null) motor.ClearSpeedMultiplier("stagger");
         }
 
         private void Update()
@@ -106,7 +130,7 @@ namespace Nightborn.Player
             _shadow = true;
             _timer = 0f;
             if (glow != null) glow.SetGlowing(false);
-            Physics.IgnoreLayerCollision(_playerLayer, veilLayer, true);
+            SetVeilCollisionIgnored(true);
             FormChanged?.Invoke(true);
             Debug.Log("[Nightborn] 化形：影身（光灭）");
         }
@@ -118,7 +142,10 @@ namespace Nightborn.Player
             _timer = 0f;
             _cooldownTimer = cooldown;
             if (glow != null) glow.SetGlowing(true);
-            Physics.IgnoreLayerCollision(_playerLayer, veilLayer, false);
+            SetVeilCollisionIgnored(false);
+            // 恢复碰撞的同一帧里胶囊可能正嵌在薄幕体内（穿到一半时限/强光把形态弹回来了），
+            // 必须立刻推到幕外，否则 CharacterController 的 overlap recovery 会把人往随机一侧顶。
+            EscapeVeilOverlap();
             FormChanged?.Invoke(false);
 
             if (burned)
@@ -130,6 +157,78 @@ namespace Nightborn.Player
             {
                 Debug.Log("[Nightborn] 化形：光身");
             }
+        }
+
+        /// <summary>Player↔Veil 碰撞开关。IgnoreLayerCollision 是全局状态，退出影身时按原值还原。</summary>
+        private void SetVeilCollisionIgnored(bool ignore)
+        {
+            Physics.IgnoreLayerCollision(_playerLayer, veilLayer, ignore || _veilCollisionIgnoredBefore);
+        }
+
+        /// <summary>把胶囊从薄幕体内推到"玩家中心所在那一侧"的外面（最多迭代 3 次）。</summary>
+        private void EscapeVeilOverlap()
+        {
+            var cc = GetComponent<CharacterController>();
+            if (cc == null) return;
+
+            for (int pass = 0; pass < 3; pass++)
+            {
+                Bounds body = cc.bounds;
+                int count = Physics.OverlapBoxNonAlloc(body.center, body.extents * 0.9f, _overlap, Quaternion.identity,
+                    1 << veilLayer, QueryTriggerInteraction.Ignore);
+
+                bool moved = false;
+                for (int i = 0; i < count; i++)
+                {
+                    var other = _overlap[i];
+                    if (other == null || other.transform.root == transform.root) continue;
+                    var box = other as BoxCollider;
+                    if (box == null) continue;
+                    if (!TryPushOutOfBox(cc, box)) continue;
+                    moved = true;
+                    break;
+                }
+
+                if (!moved) return;
+            }
+        }
+
+        /// <summary>按薄幕最薄的那根轴把玩家推出去；没嵌进去就返回 false。</summary>
+        private bool TryPushOutOfBox(CharacterController cc, BoxCollider box)
+        {
+            Vector3 size = Vector3.Scale(box.size, box.transform.lossyScale);
+            Vector3 axisX = box.transform.right;
+            Vector3 axisY = box.transform.up;
+            Vector3 axisZ = box.transform.forward;
+
+            int thin = 0;
+            if (size.y < size.x) thin = 1;
+            if (size.z < (thin == 0 ? size.x : size.y)) thin = 2;
+            Vector3 normal = thin == 0 ? axisX : (thin == 1 ? axisY : axisZ);
+            float halfThick = (thin == 0 ? size.x : (thin == 1 ? size.y : size.z)) * 0.5f;
+
+            Vector3 center = transform.TransformPoint(cc.center);
+            Vector3 rel = center - box.transform.TransformPoint(box.center);
+            float along = Vector3.Dot(rel, normal);
+
+            // 横向已经出了幕的边界（只是 AABB 相交），不算卡住
+            Vector3[] axes = { axisX, axisY, axisZ };
+            for (int a = 0; a < 3; a++)
+            {
+                if (a == thin) continue;
+                float halfAxis = (a == 0 ? size.x : (a == 1 ? size.y : size.z)) * 0.5f;
+                if (Mathf.Abs(Vector3.Dot(rel, axes[a])) > halfAxis) return false;
+            }
+
+            float need = halfThick + cc.radius + 0.03f - Mathf.Abs(along);
+            if (need <= 0f) return false; // 已经在外侧
+
+            Vector3 dir = normal * (along >= 0f ? 1f : -1f);
+            cc.enabled = false;
+            transform.position += dir * need;
+            cc.enabled = true;
+            Debug.Log("[Nightborn] 影身出幕与薄幕重叠 → 沿幕法线推出 " + need.ToString("F2") + " m");
+            return true;
         }
 
         private void Stagger()

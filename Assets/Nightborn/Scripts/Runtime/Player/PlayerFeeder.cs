@@ -37,6 +37,14 @@ namespace Nightborn.Player
         {
             if (_target != null)
             {
+                // 被打断（被抓冻结 / 血储归零 / 目标被销毁）：整段作废，不回血、不给昼睡。
+                if (IsInterrupted())
+                {
+                    Debug.Log("[Nightborn] 吸血被打断 → 回滚");
+                    Cancel();
+                    return;
+                }
+
                 _timer -= Time.deltaTime;
                 if (_timer <= 0f) Complete();
                 return;
@@ -45,9 +53,20 @@ namespace Nightborn.Player
             var mouse = Mouse.current;
             if (mouse == null || !mouse.leftButton.wasPressedThisFrame) return;
 
+            // 鼠标解锁状态下左键是"重新捕获鼠标"（ThirdPersonCamera 也吃这个点击），别顺手开始吸血。
+            if (Cursor.lockState != CursorLockMode.Locked) return;
+
             var candidate = FindFeedable();
             if (candidate == null) return;
             Begin(candidate);
+        }
+
+        private bool IsInterrupted()
+        {
+            if (_target == null) return true;
+            if (motor != null && motor.HasSpeedModifier("freeze")) return true;
+            if (blood != null && blood.IsDead) return true;
+            return false;
         }
 
         /// <summary>外部（UI / 测试）触发一次吸血，成功返回 true。</summary>
@@ -100,6 +119,7 @@ namespace Nightborn.Player
         public void Cancel()
         {
             _target = null;
+            _timer = 0f;
             if (motor != null) motor.ClearSpeedMultiplier("feed");
         }
     }

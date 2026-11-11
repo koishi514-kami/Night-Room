@@ -19,11 +19,29 @@ namespace Nightborn.Detection
         private void Awake()
         {
             if (feedTarget == null) feedTarget = GetComponent<FeedTarget>();
-            if (feedTarget != null)
-            {
-                feedTarget.SetFeedable(false);
-                Debug.Log("[Nightborn] 钟楼看守：重甲，无法吸血");
-            }
+            LockFeed();
         }
+
+        private void OnEnable()
+        {
+            // 运行时被重新启用（场景重载 / 其它系统开关）也要把「重甲」钉回去：
+            // FeedTarget.feedable 是个 [SerializeField]，SetFeedable 之外没人保证它不被翻回来。
+            LockFeed();
+        }
+
+        private void LockFeed()
+        {
+            if (feedTarget == null)
+            {
+                Debug.LogWarning("[Nightborn] 钟楼看守身上没有 FeedTarget，重甲逻辑无处生效：" + name);
+                return;
+            }
+
+            bool wasFeedable = feedTarget.Feedable;
+            feedTarget.SetFeedable(false);
+            if (wasFeedable) Debug.Log("[Nightborn] 钟楼看守：重甲，无法吸血");
+        }
+
+
     }
 }

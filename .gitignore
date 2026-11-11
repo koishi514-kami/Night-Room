@@ -1,4 +1,4 @@
-# Unity generated
+# Unity 生成物
 [Ll]ibrary/
 [Tt]emp/
 [Oo]bj/
@@ -8,9 +8,21 @@
 [Uu]serSettings/
 [Mm]emoryCaptures/
 [Rr]ecordings/
+sysinfo.txt
+crashlytics-build.properties
 
 # Nightborn 内部产物
+#   _Preview/ 是 NightbornBootstrap.RenderPreview() 输出的预览图（每次 Build 覆盖同一张）
 _Preview/
+#   编辑器/工具链的临时缓存（graphflow 索引等），不要进仓库
+.graphflow/
+**.graphflow/
+#   手改文件时产生的备份
+*.bak
+*.orig
+*.rej
+
+# 注意：Assets/Screenshots/*.png 是真机验证证据，必须提交，不要加进这里
 
 # Visual Studio / Rider
 .vs/
@@ -28,11 +40,31 @@ _Preview/
 *.mdb
 *.opendb
 *.VC.db
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Crash reports
-sysinfo.txt
-crashlytics-build.properties
+# ---- 2026-11-12 补（交接审计发现缺的）----
+# VS Code / 其它 IDE
+.vscode/
+.history/
+.consulo/
+*.DotSettings.user
+
+# 构建导出物（常落在工程根）
+*.unitypackage
+*.apk
+*.aab
+*.app
+*.ipa
+[Ee]xportedObj/
+*.stackdump
+*.tmp
+
+# 商店 / 插件工具生成
+Assets/AssetStoreTools*
+Assets/Plugins/Editor/JetBrains*

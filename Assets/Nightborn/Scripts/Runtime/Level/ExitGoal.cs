@@ -8,19 +8,37 @@ namespace Nightborn.Level
     public class ExitGoal : MonoBehaviour
     {
         private bool _done;
+        private int _playerLayer = -1;
 
         private void Awake()
         {
             var col = GetComponent<Collider>();
-            col.isTrigger = true;
+            if (col != null) col.isTrigger = true;
+            _playerLayer = LayerMask.NameToLayer("Player");
         }
 
         private void OnTriggerEnter(Collider other)
         {
-            if (_done) return;
-            if (other.GetComponentInParent<PlayerMotor>() == null) return;
+            if (_done || other == null) return;
+            if (!IsPlayer(other)) return;
+
+            var flow = LevelFlow.Instance;
+            // 没有流程管理器就不算通关 —— 别把 _done 锁死，否则流程组件后补上来就再也进不了门
+            if (flow == null || flow.IsComplete) return;
+
             _done = true;
-            LevelFlow.Instance?.CompleteLevel();
+
+            // 通关后 HUD 的目标箭头不该还指着出口
+            var objective = GetComponent<ObjectiveTarget>();
+            if (objective != null) objective.MarkDone();
+
+            flow.CompleteLevel();
+        }
+
+        private bool IsPlayer(Collider other)
+        {
+            if (_playerLayer >= 0 && other.gameObject.layer == _playerLayer) return true;
+            return other.GetComponentInParent<PlayerMotor>() != null;
         }
     }
 }

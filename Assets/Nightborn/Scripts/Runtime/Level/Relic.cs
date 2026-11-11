@@ -28,12 +28,15 @@ namespace Nightborn.Level
 
         public void Interact(GameObject actor)
         {
+            if (_collected) return;
             LevelFlow.Instance?.CollectRelic(this);
         }
 
         public void Collect()
         {
+            if (_collected) return;   // 幂等：重复调用不重复播报、不重复结算
             _collected = true;
+
             if (relicRenderer != null) relicRenderer.enabled = false;
             if (glow != null) glow.enabled = false;
             foreach (var col in GetComponentsInChildren<Collider>()) col.enabled = false;

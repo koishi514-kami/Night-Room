@@ -38,6 +38,8 @@ namespace Nightborn.Level
 
         public bool IsAsleep => _asleep;
         public float FeedReward => feedReward;
+        /// <summary>是否允许被吸（钟楼看守是重甲，恒为 false）。</summary>
+        public bool Feedable => feedable;
 
         private void Awake()
         {
@@ -69,6 +71,15 @@ namespace Nightborn.Level
         public void ApplyFeed()
         {
             if (_asleep) return;
+
+            // 1.4 秒的吸血锁定里目标可能已经转过身开始追你（CanBeFed 只在「开始吸」那一刻把关）。
+            // 这时候不该还能把它吸睡：否则玩家被抓的同帧守卫倒地，等于白嫖一次脱身 + 一分钟空场。
+            if (guard != null && guard.CurrentState == Nightborn.Detection.GuardAI.State.Chase)
+            {
+                Debug.Log("[Nightborn] 吸血被打断：目标已经进入追击");
+                return;
+            }
+
             _asleep = true;
             _sleepTimer = sleepDuration;
 

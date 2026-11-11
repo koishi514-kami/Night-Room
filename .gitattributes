@@ -1,0 +1,33 @@
+# 行尾与合并策略（2026-11-12 补：之前没有这个文件，导致源码 LF/CRLF 混用、
+# YAML 场景合并冲突难解）
+* text=auto
+
+# 仓库自身的元文件也用 LF，免得每次 checkout 都抖
+/.gitattributes text eol=lf
+/.gitignore     text eol=lf
+
+# C# 源码：统一 LF，diff 走 csharp 语法
+*.cs      text diff=csharp eol=lf
+*.shader  text eol=lf
+*.cginc   text eol=lf
+*.hlsl    text eol=lf
+*.md      text eol=lf
+
+# Unity 的 YAML 资产：统一 LF，并用 UnityYAMLMerge 做三方合并
+*.unity      text merge=unityyamlmerge eol=lf
+*.prefab     text merge=unityyamlmerge eol=lf
+*.asset      text merge=unityyamlmerge eol=lf
+*.mat        text merge=unityyamlmerge eol=lf
+*.controller text merge=unityyamlmerge eol=lf
+*.anim       text merge=unityyamlmerge eol=lf
+
+# .meta 必须是 LF 且逐字节稳定：换成 CRLF 会让每次 checkout 都产生 diff
+*.meta text eol=lf
+
+# 二进制
+*.png  binary
+*.jpg  binary
+*.psd  binary
+*.dll  binary
+*.exe  binary
+*.unitypackage binary

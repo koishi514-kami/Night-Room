@@ -31,13 +31,21 @@ namespace Nightborn.Player
         [SerializeField] private float breathAmplitude = 0.05f;
         [SerializeField] private float breathFrequency = 0.35f;
 
+        [Header("半径过渡")]
+        [Tooltip("半径变大时每秒回涨的米数。缩小（喝压光药剂）保持瞬时。")]
+        [SerializeField] private float radiusGrowSpeed = 2.5f;
+
         private float _seed;
         private float _baseRadius;
+        private float _targetRadius;
         private bool _glowing = true;
 
         public Light GlowLight => glowLight;
         public bool IsGlowing => _glowing;
         public float Radius => radius;
+
+        /// <summary>目标半径（药剂期间 = 1 m，平时 = 3.5 m）。渐变途中 <see cref="Radius"/> 报的是当前值。</summary>
+        public float TargetRadius => _targetRadius;
 
         /// <summary>开关自体光（影身进入/退出时触发）。</summary>
         public event Action<bool> GlowChanged;
@@ -46,6 +54,7 @@ namespace Nightborn.Player
         {
             _seed = UnityEngine.Random.value * 100f;
             _baseRadius = radius;
+            _targetRadius = radius;
             if (glowLight == null) glowLight = GetComponentInChildren<Light>();
             if (glowLight == null)
                 Debug.LogError("[Nightborn] SelfGlow 找不到 Light，请检查 PLAYER_Glow 子节点。");
@@ -54,6 +63,21 @@ namespace Nightborn.Player
 
         private void Update()
         {
+            // 半径过渡：压光药剂到期的瞬间把 1 m 直接写回 3.5 m，整个房间的照明会"啪"一下亮起来，
+            // 守卫的光照判定也会在一帧里翻面。缩小（喝药）保持瞬时——Boss 第三段要的就是那一帧压到位。
+            if (!Mathf.Approximately(radius, _targetRadius))
+            {
+                if (_targetRadius > radius)
+                {
+                    radius = Mathf.MoveTowards(radius, _targetRadius, radiusGrowSpeed * Time.deltaTime);
+                }
+                else
+                {
+                    radius = _targetRadius;
+                }
+                if (glowLight != null) glowLight.range = radius;
+            }
+
             if (glowLight == null || !_glowing) return;
             float noise = Mathf.PerlinNoise(_seed + Time.time * breathFrequency, 0f) - 0.5f;
             glowLight.intensity = intensity * (1f + noise * 2f * breathAmplitude);
@@ -69,10 +93,15 @@ namespace Nightborn.Player
             Debug.Log("[Nightborn] 自体光 " + (on ? "开启" : "熄灭"));
         }
 
-        /// <summary>临时改光照半径（压光药剂用）。</summary>
+        /// <summary>
+        /// 改光照半径（压光药剂用）。
+        /// 缩小立刻生效；变大交给 Update 按 <see cref="radiusGrowSpeed"/> 回涨。
+        /// </summary>
         public void SetRadius(float newRadius)
         {
-            radius = Mathf.Max(0.3f, newRadius);
+            _targetRadius = Mathf.Max(0.3f, newRadius);
+            if (_targetRadius >= radius) return;
+            radius = _targetRadius;
             if (glowLight != null) glowLight.range = radius;
         }
 

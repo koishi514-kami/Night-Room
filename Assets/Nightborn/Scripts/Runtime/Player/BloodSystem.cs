@@ -31,8 +31,17 @@ namespace Nightborn.Player
         [Header("引用")]
         [SerializeField] private LightExposureProbe probe;
         [SerializeField] private PlayerMotor motor;
+        [Tooltip("归零时打断正在进行的吸血（留空自动取同物体上的组件）。")]
+        [SerializeField] private PlayerFeeder feeder;
+        [Tooltip("归零时清掉压光药剂状态（留空自动取同物体上的组件）。")]
+        [SerializeField] private DimPotion potion;
+
+        [Tooltip("归零后等多久还没人来救（回检查点）就自己复位。防止没有 LevelFlow / 已通关时永久卡死。")]
+        [SerializeField] private float respawnWatchdog = 4f;
 
         private bool _dead;
+        private float _deadTimer;
+        private Nightborn.Level.LevelFlow _flow;
 
         public float Current { get; private set; }
         public float Max => maxBlood;
@@ -51,16 +60,36 @@ namespace Nightborn.Player
             Current = Mathf.Clamp(startBlood, 0f, maxBlood);
             if (probe == null) probe = GetComponent<LightExposureProbe>();
             if (motor == null) motor = GetComponent<PlayerMotor>();
+            if (feeder == null) feeder = GetComponent<PlayerFeeder>();
+            if (potion == null) potion = GetComponent<DimPotion>();
         }
 
         private void Start()
         {
             Changed?.Invoke(Current, maxBlood);
+            _flow = FindObjectOfType<Nightborn.Level.LevelFlow>();
         }
 
         private void Update()
         {
-            if (_dead) return;
+            if (_dead)
+            {
+                // 看门狗：归零后本该由 LevelFlow 在 0.8 s 内送回检查点。
+                // 但如果没人订阅 Died（场景没 LevelFlow）或者已经通关（LevelFlow.Update 提前 return），
+                // 玩家会永久停在「血 0 + 动不了」。这里兜底自己复活，绝不允许状态机卡死。
+                _deadTimer += Time.deltaTime;
+                if (_deadTimer >= respawnWatchdog)
+                {
+                    Debug.LogWarning("[Nightborn] 血储归零 " + respawnWatchdog.ToString("F0") +
+                                     " s 无人救援 → 自动复位（检查 LevelFlow / 是否已通关）");
+                    Revive(Mathf.Max(40f, maxBlood * 0.4f));
+                }
+                return;
+            }
+
+            // 通关后不再灼伤：结算横幅期间把玩家烧死毫无意义（而且会连锁出「冻结」观感）。
+            if (_flow != null && _flow.IsComplete) return;
+
             if (probe != null && probe.IsBurning && burnDamagePerSecond > 0f)
                 ApplyDelta(-burnDamagePerSecond * Time.deltaTime);
         }
@@ -107,8 +136,13 @@ namespace Nightborn.Player
         public void Revive(float amount = -1f)
         {
             _dead = false;
+            _deadTimer = 0f;
             Current = Mathf.Clamp(amount > 0f ? amount : maxBlood, 0f, maxBlood);
-            if (motor != null) motor.enabled = true;
+            if (motor != null)
+            {
+                motor.enabled = true;
+                motor.ClearSpeedMultiplier("dead");
+            }
             Changed?.Invoke(Current, maxBlood);
         }
 
@@ -117,9 +151,20 @@ namespace Nightborn.Player
             _dead = true;
             Current = 0f;
             Changed?.Invoke(Current, maxBlood);
+
+            // 归零到回检查点之间有 0.8 s：如果不打断，正在跑的 1.4 s 吸血会在回滚途中
+            // 照常结算（守卫被吸睡 + 回血），等于把死亡换成了一次免费吸血。
+            if (feeder != null) feeder.Cancel();
+            if (potion != null) potion.Cancel();
+
             Died?.Invoke();
             Debug.Log("[Nightborn] 血储归零：玩家死亡");
-            if (motor != null) motor.enabled = false;
+
+            // 2026-11-11：原来这里直接 motor.enabled = false。但只有 Revive() 会把它打开，
+            // 一旦没人来救（没有 LevelFlow / 已通关），玩家就永久冻住（真机实测踩到过）。
+            // 改成走移速倍率：视觉/移动一样停住，但状态是可恢复的，而且 Update 里的看门狗能兜底。
+            _deadTimer = 0f;
+            if (motor != null) motor.SetSpeedMultiplier("dead", 0f);
         }
     }
 }

@@ -81,6 +81,15 @@ namespace Nightborn.Player
 
             if (selfGlow == null) selfGlow = GetComponent<SelfGlow>();
 
+            // 遮挡层收敛一下：默认的 ~0 把 Player 层和内置的 Ignore Raycast(2) 也算进遮挡了。
+            // Veil（幕布）保持算遮挡——"推箱挂布遮光"这套机制就是靠它生效的。
+            // 只改"仍是默认全开"的情况，避免覆盖掉在 Inspector 里手调过的遮挡层。
+            if (occluderMask.value == ~0)
+            {
+                int playerLayer = gameObject.layer;
+                occluderMask = Physics.DefaultRaycastLayers & ~(1 << playerLayer);
+            }
+
             if (carriedLantern == null)
             {
                 var go = GameObject.Find("LANTERN_Light");
@@ -126,15 +135,20 @@ namespace Nightborn.Player
         public void Sample()
         {
             Vector3 point = transform.position + sampleOffset;
-            float level = AmbientBaseline();
 
+            // 多光源按 HANDOVER §4 的模型取「最亮的那个」，不是求和。
+            // 求和会把两盏灯的交界处（实际仍是半影区）判成灼伤：街区两盏 2.2 强度的灯
+            // 各贡献 0.55，和起来 1.1 > 0.65 就直接烧，躲进灯之间的暗区也无效。
+            float strongest = 0f;
             for (int i = 0; i < _lights.Count; i++)
             {
                 var l = _lights[i];
                 if (l == null || l == carriedLantern) continue;
                 if (selfGlow != null && l == selfGlow.GlowLight) continue;
-                level += Evaluate(l, point);
+                strongest = Mathf.Max(strongest, Evaluate(l, point));
             }
+
+            float level = AmbientBaseline() + strongest;
 
             _current = level;
 

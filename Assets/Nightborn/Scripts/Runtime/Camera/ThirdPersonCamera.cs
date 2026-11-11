@@ -27,6 +27,9 @@ namespace Nightborn.Cameras
         private Vector3 _pivot;
         private bool _pivotInit;
 
+        // SphereCastNonAlloc 的缓冲：用来跳过玩家自己的碰撞体（起点就在胶囊体内，否则相机会被永久拉到贴脸）。
+        private readonly RaycastHit[] _hitBuffer = new RaycastHit[8];
+
         public Transform Target => target;
         public float CurrentDistance => distance;
 
@@ -98,11 +101,24 @@ namespace Nightborn.Cameras
             Quaternion rot = Quaternion.Euler(_pitch, _yaw, 0f);
 
             float wanted = distance;
-            if (Physics.SphereCast(_pivot, collisionRadius, -(rot * Vector3.forward), out RaycastHit hit,
-                    distance, collisionMask, QueryTriggerInteraction.Ignore))
+            float nearest = float.PositiveInfinity;
+            int hitCount = Physics.SphereCastNonAlloc(_pivot, collisionRadius, -(rot * Vector3.forward),
+                _hitBuffer, distance, collisionMask, QueryTriggerInteraction.Ignore);
+
+            for (int i = 0; i < hitCount; i++)
             {
-                wanted = Mathf.Max(minDistance * 0.6f, hit.distance - 0.05f);
+                RaycastHit h = _hitBuffer[i];
+                if (h.collider == null) continue;
+                // 起点重叠（玩家自己的 CharacterController）直接跳过，不做穿墙拉近。
+                if (h.distance <= 0.0001f) continue;
+                if (target != null && h.collider.transform.root == target.root) continue;
+                if (h.distance < nearest) nearest = h.distance;
             }
+
+            // 命中近处的墙时按实际距离夹取，下界 0.35m：既不穿墙，也不会因为 minDistance 下限
+            // 把相机顶进墙体（贴墙时 1.2m 的下限会插进墙面，属于旧行为的残留）。
+            if (nearest < float.PositiveInfinity)
+                wanted = Mathf.Clamp(nearest - 0.05f, 0.35f, distance);
 
             Vector3 camPos = _pivot - rot * Vector3.forward * wanted;
             transform.SetPositionAndRotation(_pivot, rot);

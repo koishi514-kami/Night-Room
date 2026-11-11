@@ -25,10 +25,39 @@ namespace Nightborn.Player
         private Vector3 _planarVelocity;
         private float _verticalVelocity;
         private Vector3 _spawnPoint;
+        private readonly System.Collections.Generic.Dictionary<string, float> _speedModifiers =
+            new System.Collections.Generic.Dictionary<string, float>();
 
         public bool IsSneaking { get; private set; }
         public float CurrentSpeed => _planarVelocity.magnitude;
         public Vector2 RawInput { get; private set; }
+
+        /// <summary>外部施加的移速倍率（取所有来源里最小的那个），1 = 无影响。</summary>
+        public float SpeedMultiplier
+        {
+            get
+            {
+                float result = 1f;
+                foreach (var v in _speedModifiers.Values) result = Mathf.Min(result, v);
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// 按来源设置移速倍率：灼伤（burn）/ 硬直（stagger）/ 被抓冻结（freeze）各自独立，
+        /// 取最小值生效——避免一个系统每帧覆写掉另一个系统的惩罚。
+        /// </summary>
+        public void SetSpeedMultiplier(string key, float multiplier)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+            if (multiplier >= 0.999f) _speedModifiers.Remove(key);
+            else _speedModifiers[key] = Mathf.Clamp(multiplier, 0f, 3f);
+        }
+
+        public void ClearSpeedMultiplier(string key)
+        {
+            if (!string.IsNullOrEmpty(key)) _speedModifiers.Remove(key);
+        }
 
         private void Awake()
         {
@@ -78,7 +107,7 @@ namespace Nightborn.Player
                 wish = (fwd * input.y + right * input.x).normalized;
             }
 
-            float targetSpeed = IsSneaking ? sneakSpeed : walkSpeed;
+            float targetSpeed = (IsSneaking ? sneakSpeed : walkSpeed) * SpeedMultiplier;
             Vector3 targetVelocity = wish * targetSpeed;
             _planarVelocity = Vector3.MoveTowards(_planarVelocity, targetVelocity, acceleration * Time.deltaTime);
 

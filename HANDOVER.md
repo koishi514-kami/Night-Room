@@ -1,13 +1,14 @@
 # 《夜裔 · 血月临城》工程交接文档
 
 > Unity 3D 哥特潜行解谜 · 项目代号 **Nightborn** · 交接日期 2026-11-06
-> 当前版本：git `997f736`（第 6 次提交）· 工程路径 `D:\Unity\Nightborn`
+> 基线版本：git `671bdd2`（第 7 次提交，交接文档）· 工程路径 `D:\Unity\Nightborn`
+> **P0-1（光照即地形）已于 2026-11-11 实现并通过真机验证，改动尚未提交，详见 §10**
 
 ---
 
 ## 0. 一句话交接
 
-工程已经把"能跑起来的底座"做完了：URP 渲染管线、开场街区灰盒、可走可潜行的玩家、跟随提灯、后处理与调试浮层全部就位并通过编译验证；**核心玩法（光照即地形 / 血储 / 暴露度 / 巡逻 AI）尚未开始写**，接手者从这里继续往上垒。
+工程已经把"能跑起来的底座"做完了：URP 渲染管线、开场街区灰盒、可走可潜行的玩家、跟随提灯、后处理与调试浮层全部就位并通过编译验证。**P0-1「光照即地形」已接通**（提灯实时阴影 + 光照采样 + 灼伤判定），血储 / 暴露度 / 巡逻 AI 尚未开始写，接手者从这里继续往上垒。
 
 ---
 
@@ -49,7 +50,7 @@
 ### 2.1 版本控制
 
 - git 仓库在工程根目录，`user.name = Nightborn Dev`，`user.email = dev@nightborn.local`
-- 当前 6 次提交，73 个受控文件：
+- 当前 7 次提交，75 个受控文件（P0-1 改动未提交）：
 
 | 提交 | 说明 |
 | --- | --- |
@@ -59,6 +60,7 @@
 | `c825adc` | 空场景自动打开街区、场景连线检查菜单 |
 | `48350b6` | 修复 ThirdPersonCamera 的四元数取负编译错误 |
 | `997f736` | 修复后处理：VolumeProfile 子资源落盘 + 渲染器挂 PostProcessData |
+| `671bdd2` | 交接文档 HANDOVER.md / .docx |
 
 - `.gitignore` 已排除 `Library/ Temp/ Logs/ obj/ Build/ _Preview/ .vs/ *.csproj *.sln`。
 - 换行符 LF→CRLF 的警告是 Windows 正常现象，忽略即可。
@@ -69,11 +71,12 @@
 Assets/Nightborn/
 ├─ Scenes/      L_Ch01_S01_Street.unity      唯一场景（由脚本生成，见 §6 陷阱 1）
 ├─ Scripts/
-│  ├─ Runtime/Player/   PlayerMotor.cs, LanternFollow.cs
+│  ├─ Runtime/Player/   PlayerMotor.cs, LanternFollow.cs, LightExposureProbe.cs
 │  ├─ Runtime/Camera/   ThirdPersonCamera.cs
 │  ├─ Runtime/Debug/    NightbornDebugHud.cs, NightbornRuntimeBoot.cs
 │  └─ Editor/           NightbornBootstrap.cs, NightbornEditorGuard.cs
 ├─ Materials/   M_InkStone / M_BloodBrick / M_CandleGold / M_IronGrey / M_MistTeal
+├─ Screenshots/ p01_burning_under_lamp.png, p01_lantern_shadow_demo.png（P0-1 验收图）
 └─ Settings/    Nightborn_URP.asset, Nightborn_Renderer.asset, VP_Global.asset
 ```
 
@@ -85,13 +88,14 @@ Assets/Nightborn/
 
 | 文件 | 行数 | 职责 | 关键点 |
 | --- | --- | --- | --- |
-| `Scripts/Runtime/Player/PlayerMotor.cs` | 90 | CharacterController 驱动移动 | walk 3.2 / sneak 1.3 / accel 14 / gravity −22；相对 `CAM_Rig` 求方向并 Slerp 转身；掉出 y<−20 回出生点；对外暴露 `IsSneaking`、`CurrentSpeed`、`RawInput` |
-| `Scripts/Runtime/Camera/ThirdPersonCamera.cs` | 97 | 第三人称跟随 | 鼠标 Δ 转 yaw/pitch；`Physics.SphereCast`（半径 0.28）遇墙把相机拉到 `max(minDistance*0.6, hit.distance-0.05)`；target 为空按 `PLAYER_Ada` / tag Player 自愈 |
-| `Scripts/Runtime/Player/LanternFollow.cs` | 44 | 提灯跟随 + 烛光抖动 | `Vector3.SmoothDamp` 0.12 s；offset (0.35, 1.25, 0.28)；Perlin 抖动 1.6±0.12、频率 7.5；**shadows 显式 None** |
-| `Scripts/Runtime/Debug/NightbornDebugHud.cs` | 80 | F1 自检浮层 | 显示 Unity 版本、fps、场景名、玩家坐标/输入向量/速度、相机位置与 clip、Input System 状态、最近报错 |
-| `Scripts/Runtime/Debug/NightbornRuntimeBoot.cs` | 17 | 运行时自动挂 HUD | `[RuntimeInitializeOnLoadMethod(AfterSceneLoad)]` |
-| `Scripts/Editor/NightbornBootstrap.cs` | ~404 | **场景生成器**（菜单 Nightborn → Build Base Scene） | 重建渲染器/管线/材质/Volume/街区场景并渲染预览图 |
-| `Scripts/Editor/NightbornEditorGuard.cs` | 99 | 编辑器守卫 | 钉死 `playModeStartScene`；空场景自动切街区；菜单「打开开场街区场景」「检查场景连线」 |
+| `Scripts/Runtime/Player/PlayerMotor.cs` | 115 | CharacterController 驱动移动 | walk 3.2 / sneak 1.3 / accel 14 / gravity −22；相对 `CAM_Rig` 求方向并 Slerp 转身；掉出 y<−20 回出生点；对外暴露 `IsSneaking`、`CurrentSpeed`、`RawInput`；**`SetExternalSpeedMultiplier()` 供灼伤/减速区调用**（P0-1） |
+| `Scripts/Runtime/Player/LightExposureProbe.cs` | 205 | **光照即地形判定（P0-1）** | 10Hz 采样胸口点：环境底光 0.5×亮度 + 方向光 0.12×强度 + 点光 `intensity×(1−d/range)²`；遮挡用「玩家→灯」反打 `RaycastNonAlloc`；0.65 进 / 0.55 出滞回；灼伤时移速 ×0.45；手持提灯不参与灼伤；对外 `LightLevel` / `IsBurning` / `CarriedLanternIntensity` |
+| `Scripts/Runtime/Camera/ThirdPersonCamera.cs` | 125 | 第三人称跟随 | 鼠标 Δ 转 yaw/pitch；`SphereCastNonAlloc`（半径 0.28）遇墙把相机夹到 `hit.distance−0.05`（下界 0.35m，不穿墙）；**跳过玩家自身碰撞体**；target 为空按 `PLAYER_Ada` / tag Player 自愈 |
+| `Scripts/Runtime/Player/LanternFollow.cs` | 78 | 提灯跟随 + 烛光抖动 | `Vector3.SmoothDamp` 0.12 s；offset (0.35, 1.25, 0.28)；Perlin 抖动 1.6±0.12、频率 7.5；**阴影由 `castShadows` 字段控制（默认 Soft / 512 / 强度 0.8），Awake 统一应用** |
+| `Scripts/Runtime/Debug/NightbornDebugHud.cs` | 104 | F1 自检浮层 | 显示 Unity 版本、fps、场景名、玩家坐标/输入向量/速度、相机位置与 clip、**光照值 / 灼伤状态 / 移速倍率 / 提灯光强**、Input System 状态、最近报错 |
+| `Scripts/Runtime/Debug/NightbornRuntimeBoot.cs` | 18 | 运行时自动挂 HUD | `[RuntimeInitializeOnLoadMethod(AfterSceneLoad)]` |
+| `Scripts/Editor/NightbornBootstrap.cs` | 408 | **场景生成器**（菜单 Nightborn → Build Base Scene） | 重建渲染器/管线/材质/Volume/街区场景并渲染预览图；已在生成时挂 `LightExposureProbe`、提灯开 Soft 阴影 |
+| `Scripts/Editor/NightbornEditorGuard.cs` | 114 | 编辑器守卫 | 钉死 `playModeStartScene`；空场景自动切街区；菜单「打开开场街区场景」「检查场景连线」 |
 
 ---
 
@@ -144,15 +148,16 @@ Assets/Nightborn/
 - [x] 玩家移动 / 潜行、相机跟随与穿墙拉近、提灯跟随与烛光抖动
 - [x] F1 调试浮层、场景守卫、场景连线自检
 - [x] git 版本控制 + README
+- [x] **P0-1 提灯实时阴影 +「光照即地形」判定**（2026-11-11，真机验证见 §10）
 
 ### 5.2 未完成（按设计文档的优先级）
 
 | 优先级 | 内容 | 验收标准 |
 | --- | --- | --- |
-| P0 | **提灯实时阴影 +「光照即地形」判定** | 提灯 `LANTERN_Light` 开 Soft 阴影；采样光照强度 > 0.65 时对玩家施加"灼伤"（掉血/硬直），远处暗处安全 |
-| P0 | 血储系统 | 血储 100，夜行 −6/min，吸血 +30，血视 5/次，灯芯 +25 |
-| P1 | 暴露度 0–100 | 光照 +12/s、阴影 −6/s，>60 触发巡逻，满 100 触发"围猎" |
-| P1 | 巡逻 AI | NavMesh 巡逻 + 视锥检测 + 追击状态机（可用 `unity-navmesh` 技能） |
+| ~~P0~~ ✅ | ~~**提灯实时阴影 +「光照即地形」判定**~~ | 已完成：见 §10，F1 浮层直接可读 `光照 / 灼伤 / 移速倍率` |
+| P0 | 血储系统 | 血储 100，夜行 −6/min，吸血 +30，血视 5/次，灯芯 +25（扣血接 `LightExposureProbe.IsBurning`） |
+| P1 | 暴露度 0–100 | 光照 +12/s、阴影 −6/s，>60 触发巡逻，满 100 触发"围猎"（读 `LightLevel` / `CarriedLanternIntensity`） |
+| P1 | 巡逻 AI | NavMesh 巡逻 + 视锥检测 + 追击状态机（可用 `unity-navmesh` 技能；光照遮挡已有反打射线可复用） |
 | P2 | 关卡 ×3 章 ×9 关、教程引导、存档 | 单关 3–4 分钟，全流程约 36 分钟 |
 | P2 | UI / 音频 / 打包 | HUD（血储、暴露条）、Volume 混音、Windows 64 位包 ≤ 300 MB |
 
@@ -162,13 +167,16 @@ Assets/Nightborn/
 
 1. **`NightbornBootstrap.BuildAll` 是破坏性的**：它会 `DeleteAsset` 并重建渲染器、管线、5 个材质、VP_Global 和整个场景。**在编辑器里手工改场景后再跑它 = 全部丢失**。要改场景请改脚本，或另存新场景并把新逻辑放进 `Scripts/Runtime`。
 2. **后处理曾经整份失效**（`997f736` 已修）：`VolumeProfile.Add<T>()` 只把组件加进内存，必须 `AssetDatabase.AddObjectToAsset(component, profile)` 才会落盘，否则序列化成 `fileID: 0`。同时 `UniversalRendererData.postProcessData` 必须指向 URP 的 PostProcessData.asset，否则 Volume 完全不起作用。
-3. **提灯与街灯目前全部 `shadows: None`**：这是当初为了性能做的取舍，做"光照即地形"时必须把提灯的阴影打开（点光阴影在 Forward+ 下可用，注意 2048 贴图开销）。
+3. **提灯阴影由脚本接管，改 Inspector 的 Light 组件无效**：`LanternFollow.Awake()` 会按 `castShadows / shadowResolution / shadowStrength` 三个字段重写 `LANTERN_Light`，所以要让提灯不投影就取消勾选 `castShadows`。街灯仍是 `shadows: None`（性能取舍，6 盏点光全开阴影会掉帧）。
 4. **编辑器开着时，外部工具写工程内文件会失败**：报 `ReplaceFileW EIO (Win32 32)`。要走命令行改文件时先关 Unity，或用 `[IO.File]::Open(..., Truncate, Write, ReadWrite)`。
 5. **Console 里的红色 `error CS` 可能是历史记录**：判断编译是否成功，看 `%LOCALAPPDATA%\Unity\Editor\Editor.log` 里最后一条 `*** Tundra build success` 和 `Library/ScriptAssemblies/Assembly-CSharp.dll` 的时间戳。
 6. **`D:\Unity\Nightborn_compiletest`** 是早期做编译验证留下的副本，被僵尸 Unity 进程占着，重启后可整目录删除，与主工程无关。
 7. **输入全部走 Input System**（`Keyboard.current` / `Mouse.current`）：若浮层显示"Keyboard.current 为 null"，去 Project Settings → Player → Active Input Handling 确认是 Both / Input System Package。
 8. **不要删除 `NightbornEditorGuard.cs`**：它负责把 Play 默认场景钉死；删掉后可能出现"点 Play 进空场景全黑"的老问题。
 9. 本机无 dotnet SDK，离线编译校验要用 Unity 自带的 Roslyn（命令见 §7.2）。
+10. **QualitySettings 只有 level 5 绑定了 URP**，其余等级的 `customRenderPipeline` 是 `fileID: 0`。切质量等级会静默掉回 Built-in（画面变粉/全黑）。要改质量请只动 level 5，或把 `Nightborn_URP` 写到所有等级。
+11. **相机碰撞曾经把玩家自己算成墙**：`SphereCast` 起点在玩家胶囊体内部，旧写法会把相机永久拉到 1.2m（贴脸）。现在用 `SphereCastNonAlloc` + 跳过 `target` 根节点，并且下界改成按命中距离夹取（0.35m 起），不要再退回 `minDistance*0.6` 的老写法。
+12. **Unity MCP 桥接模式**：本机 MCP for Unity 10.3.0 默认走 HTTP（Unity 自己在 8080 起服务），而 IDE 侧的 stdio MCP 客户端只认 Unity 的 6400 端口。已经通过 EditorPrefs `MCPForUnity.UseHttpTransport = 0` 切回 stdio 模式；若哪天 MCP 又连不上，先查这条注册表项（`HKCU\Software\Unity Technologies\Unity Editor 5.x`，名字带哈希后缀）。
 
 ---
 
@@ -208,6 +216,19 @@ $src    = Get-ChildItem "D:\Unity\Nightborn\Assets\Nightborn\Scripts" -Recurse -
 
 菜单 **Nightborn → 检查场景连线**：一次性打印玩家、相机、灯笼、Volume、当前管线、相机前方 40 m 射线结果。
 
+### 7.4 不进 Play 也能验「光照即地形」
+
+Play 后用 `execute_code`（MCP）直接读/传送玩家，比手跑一遍快得多：
+
+```csharp
+var player = GameObject.Find("PLAYER_Ada");
+var probe  = player.GetComponent<Nightborn.Player.LightExposureProbe>();
+var cc     = player.GetComponent<CharacterController>();
+cc.enabled = false; player.transform.position = new Vector3(-4.4f, 0.2f, -22f); cc.enabled = true;
+probe.Sample();
+// → 灯下应为 LightLevel≈0.99 / IsBurning=True；空旷处 ≈0.25 / False
+```
+
 ---
 
 ## 8. 交接验收清单
@@ -217,6 +238,7 @@ $src    = Get-ChildItem "D:\Unity\Nightborn\Assets\Nightborn\Scripts" -Recurse -
 - [ ] WASD 能动、Shift 变慢、鼠标能转视角、滚轮能拉近距离
 - [ ] `_Preview/preview_street_01.png` 与编辑器画面一致（血砖峡谷 + 拱桥 + 6 盏烛黄街灯 + 暗角）
 - [ ] 能独立跑通 §7.1 的重建命令
+- [ ] **P0-1**：F1 浮层出现「光照 / 灼伤 / 移速倍率 / 手持提灯」一行；走到街灯下（约 4.8 m 内）显示 `灼伤`、移速倍率变 0.45；躲到货箱后立刻回 `安全`
 
 ---
 
@@ -228,7 +250,203 @@ $src    = Get-ChildItem "D:\Unity\Nightborn\Assets\Nightborn\Scripts" -Recurse -
 | 2026-11-01 | 相机穿墙、输入兜底、F1 浮层、Play 场景守卫 | `9ea9c51` `c825adc` |
 | 2026-11-01 | 修复四元数取负编译错误 | `48350b6` |
 | 2026-11-06 | 修复后处理整份失效（子资源 + PostProcessData） | `997f736` |
-| 2026-11-06 | 本文档 | — |
+| 2026-11-06 | 本文档 | `671bdd2` |
+| 2026-11-11 | **P0-1 光照即地形**：LightExposureProbe、提灯 Soft 阴影、相机自碰撞修复、HUD 光照行 | 未提交 |
+
+---
+
+## 10. P0-1 实施记录（2026-11-11）
+
+### 10.1 改了什么
+
+| 文件 | 改动 |
+| --- | --- |
+| `Scripts/Runtime/Player/LightExposureProbe.cs` | **新增**。10Hz 采样玩家胸口光照，输出 `LightLevel` / `IsBurning`；灼伤时把 `PlayerMotor` 移速压到 0.45 |
+| `Scripts/Runtime/Player/LanternFollow.cs` | 阴影从硬编码 `None` 改成 `castShadows / shadowResolution / shadowStrength` 三字段，`Awake` 统一应用；默认 Soft + 512 |
+| `Scripts/Runtime/Player/PlayerMotor.cs` | 新增 `SetExternalSpeedMultiplier()` / `SpeedMultiplier`，外部系统可减速 |
+| `Scripts/Runtime/Camera/ThirdPersonCamera.cs` | `SphereCast` → `SphereCastNonAlloc` 并跳过玩家自身碰撞体；穿墙下界改为按命中距离夹取（0.35m），不再插进墙里 |
+| `Scripts/Runtime/Debug/NightbornDebugHud.cs` | F1 浮层新增光照行 |
+| `Scripts/Editor/NightbornBootstrap.cs` | 重建场景时也挂探针、提灯开 Soft 阴影（保证 `BuildAll` 与手工场景一致） |
+| `Assets/Nightborn/Scenes/L_Ch01_S01_Street.unity` | `PLAYER_Ada` 挂上 `LightExposureProbe`（`carriedLantern` 指向 `LANTERN_Light`）；`LANTERN_Light` 阴影 Soft / 512 / 强度 0.8 |
+
+### 10.2 数值模型
+
+```
+LightLevel = min(0.35, 环境光亮度 × 0.5)            // Flat (0.15,0.16,0.20) → 0.08
+           + 方向光强度 × 0.12                      // 月光 0.8 → 0.096
+           + Σ 点光 intensity × (1 − d/range)²       // 只算没被遮挡的
+灼伤：≥ 0.65 进入，< 0.55 解除（滞回）；灼伤时移速 ×0.45
+遮挡：从玩家胸口朝灯反打 RaycastNonAlloc（长度 dist−0.2），命中非玩家物体即视为被挡
+手持提灯：默认排除出灼伤计算（`carriedLantern` 字段），但 `CarriedLanternIntensity` 仍对外提供
+```
+
+街灯（2.2 / 9 m）的灼伤半径约 **4.8 m**，与「走到灯下就危险、躲进箱子就安全」的设计意图一致。
+
+### 10.3 真机验证数据（Unity 2022.3.34f1c1 / Play 模式）
+
+| 场景 | LightLevel | IsBurning | 移速倍率 |
+| --- | --- | --- | --- |
+| 出生点 (0, −22) | 0.34 | False | 1.00 |
+| 街灯正下 (−4.4, −22) | 0.99 ~ 1.02 | True | 0.45 |
+| 空旷街心 (0, −17) | 0.25 | False | 1.00 |
+| 灯下 + 插入 0.6 m 厚墙 | 0.18 | False | 1.00 |
+| 拆掉墙 | 1.02 | True | 0.45 |
+
+相机：空旷地 `|cam−rig| = 3.400`（不再被玩家自身碰撞体拉到 1.2）；贴墙 1 m 时 `|cam−rig| = 0.673` 且相机停在墙面外（x=−8.87 vs 墙面 −9.2）。
+
+编辑器内 7 盏点光（1 盏投阴影，512×6 面）实测 **≈190 fps**（Play 模式，无 VSync 上限），性能余量充足。
+
+### 10.4 截图
+
+- `Assets/Screenshots/p02_burn_hud.png`：灯下 `光照 0.99 / 灼伤 / 移速倍率 0.45`
+- `Assets/Screenshots/p01_lantern_shadow_demo.png`：提灯在货箱与墙面投出的实时阴影
+- `Assets/Screenshots/p02_hud.png`：血储 / 暴露度读数与两条指示条（P0-2）
+
+---
+
+## 11. 工作方式：先找现成方案，别自己造（2026-11-11 追加，接手必读）
+
+这条比任何技术细节都重要：**不熟悉的功能不需要从零发明，先去拿别人的实现。**
+
+### 11.1 规则
+
+1. **先检索，再动笔**。任何机制（视线锥、巡逻状态机、光照采样、穿墙、存档、光照遮罩）在 GitHub / Asset Store / 官方示例 / 论坛里几乎都有可用的实现，先找到再改。
+2. **要理解"别人怎么做的"，就逆向它**。本机已装 **REA（Reverse Engineer Anything）**：`rea-agents` MCP，工具前缀 `mcp__rea__*`，能反编译原生二进制、APK（类/方法 → Java 源码）、.NET 程序集、JS/Electron 应用，并提取资源与配置。用它拆同类游戏，把**参数与结构**抄成结论，而不是抄资产。
+3. **只在三种情况下自己写**：找不到可用实现、许可证不兼容、参考实现与本工程耦合过深。自己写在注释里注明"为什么没有复用"。
+4. **复用也要本地化**：配色改到五色、命名改成本工程的 `PLAYER_/GEO_/BLD_` 前缀、包一层适配，别把一整个库的无关依赖拖进来。
+5. **每一笔外部来源都记进 `THIRD_PARTY.md`**（名称 / 版本 / 许可证 / 用途 / 链接），上架前逐项核查许可证。
+
+### 11.2 常用检索词（现成实现的关键词表）
+
+| 需要的东西 | 检索词 |
+| --- | --- |
+| 视线锥 / 发现检测 | `unity stealth vision cone`、`unity field of view detection`、`unity guard ai state machine` |
+| 巡逻 / 追击状态机 | `unity patrol state machine`、`unity navmesh guard` |
+| 光照采样 / 光感 | `unity light detection shader`、`urp custom light probe sampling` |
+| 影身穿幕 | `unity phase through walls`、`unity ghost wall walk` |
+| 存档 / 检查点 | `unity save system json`、`unity checkpoint trigger` |
+| 剪影 / 遮罩 | `unity stencil mask silhouette` |
+
+### 11.3 REA 的边界
+
+只用于理解机制、参数与结构；不复制资产、不搬运受版权保护的代码。逆向得到的结论（阈值、状态机转移、AI 参数）写进本文档对应小节，标明来源作品。
+
+---
+
+## 12. 设计决策记录（2026-11-11，逐条确认后固化）
+
+以后不要再重新讨论这些条目；要改就在这里改一行，并注明日期。
+
+### 12.1 产品
+
+| # | 决策 | 结论 |
+| --- | --- | --- |
+| 1 | 规模 | **9 关 = 3 章 × 3 关**，单关 4–6 分钟，全流程约 45 分钟（原文档"3 章 × 9 关 / 36 分钟"数学不成立，作废） |
+| 2 | 平台 | Windows 64 位 + Steam，1080p / 60fps，包体 ≤ 300 MB，键鼠 + 手柄 |
+| 3 | 难度 | 单一难度，**不做**难度选项与辅助开关 |
+| 4 | 叙事 | 轻叙事：每关一句独白 + 结局文本；无配音、无对话树 |
+| 5 | 美术 | 现阶段用**免费资产包**，统一改到五色板（暂定，最终风格未定） |
+| 6 | 音频 | 免费音效 + 环境 drone 循环；无配乐、无配音 |
+
+### 12.2 玩法
+
+| # | 决策 | 结论 |
+| --- | --- | --- |
+| 7 | 玩家定位 | 掠食者、**不战斗**：吸血使目标昼睡、不致死；被发现只能逃 |
+| 8 | 光源 | **取消提灯 → 角色自体光**：固定 3 m 柔光，不可调；变暗只能靠影身或遮挡 |
+| 9 | 光操纵 | 三件套：**吹灭街灯 / 推箱挂布遮光 / 压光药剂（30 s，3 m→1 m）** |
+| 10 | 血储 | **纯生命值**；删除夜耗（−6/min 在 5 分钟关卡里等于不存在）；吸血 +30 是主要回复 |
+| 11 | 血视 | 冷却型：3 秒墙后心跳与血迹，**冷却 25 秒、不耗血**；原"灯芯 +25"改为**血瓶 +25** |
+| 12 | 化形 | 光身=实体；**影身=光灭 + 穿薄幕，6 秒时限，强光下被弹回并硬直 3 秒** |
+| 13 | 敌人感知 | 双层：**视线锥定"看得见"，光照定"看得多快"**（强光 0.3 s / 暗处 3 s / 影身不可见） |
+| 14 | 围猎 | 敌人向**最后已知位置**搜索 20 秒后归位巡逻 |
+| 15 | 敌人种类 | 4 种：巡逻守卫 → 执灯修士 → 夜巡犬 → 主教 Boss |
+| 16 | Boss | 三段潜行仪式：熄 3 盏圣灯 → 影身穿两道幕 → 压光靠近祭坛；失败只重来该段 |
+| 17 | 关卡目标 | 抵达出口为主目标；每关一处可选**血之遗物**（影响结局） |
+| 18 | 失败 | 检查点（3–5 处）+ 短追逐；被抓回检查点，血量与暴露回滚 |
+| 19 | 空间 | 40×40 箱庭（含拱桥上层与巷道），**3 张场景 × 3 关**：街区 / 教堂 / 宅邸 |
+| 20 | 教学 | 关键处弹**一行文字**提示；第 1 关只教移动、潜行、躲光、熄灯 |
+| 21 | HUD | 混合：血=屏幕边缘红晕 + 心跳，能力=角色微光，暴露=敌人头顶检测提示 |
+| 22 | 键位 | 左键吸血 / Tab 化形 / Q 血视 / E 上下文交互 / Shift 潜行 / R 血瓶 / 1 压光药剂 |
+| 23 | 存档 | 检查点自动存档 + 关卡选择（按章分组，显示遗物收集） |
+| 24 | 里程碑 | **M0 按新设计重构现有系统 → M1 第 1 关 5 分钟完整闭环**，之后才铺 9 关 |
+
+### 12.3 这些决策让哪些代码失效
+
+| 现有文件 | 新定位 |
+| --- | --- |
+| `LanternFollow.cs` | → `SelfGlow.cs`：3 m 柔光挂在角色身上、投软阴影、可被影身关闭 |
+| `LightExposureProbe.cs` | 灼伤只算**外部光**，自发光不参与；新增 `IsGlowing` 供 AI 使用 |
+| `ExposureMeter.cs` | → `DetectionMeter.cs`：由守卫视线驱动，光照只决定确认速度 |
+| `BloodSystem.cs` | 删夜耗、血视移出（改冷却）、灯芯→血瓶 |
+| 无 | 新增 `ShiftForm` / 光操纵交互 / `GuardAI`（视锥·巡逻·搜索）/ `Checkpoint` + `SaveSystem` / `LevelGoal` |
+
+### 12.4 M0 任务清单（执行序）
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| 1 | `SelfGlow`（替换 `LanternFollow`） | ✅ 完成 |
+| 2 | `LightExposureProbe` 收紧（只算外部光 + 排除自体光/灯具自身） | ✅ 完成 |
+| 3 | `ExposureMeter` → `DetectionMeter`（守卫驱动） | ✅ 完成 |
+| 4 | `BloodSystem` 瘦身（删夜耗、血视移出、血瓶） | ✅ 完成 |
+| 5 | `ShiftForm`（Tab / 6 s / 穿幕 Veil 层 / 强光弹回） | ✅ 完成 |
+| 6 | 场景 90×60 → 40×40 箱庭（守卫、可吹灭灯、薄幕、检查点、出口、遗物） | ✅ 完成 |
+| 7 | 最小存档（JSON）+ 选关 | ⚠️ 存档 ✅ / 选关 UI 待 M1 |
+| 8 | 跑通 5 分钟闭环 | ✅ 逻辑闭环已验证（见 §13.3） |
+
+---
+
+## 13. M0 实施记录（2026-11-11）
+
+### 13.1 新增 / 重构的代码
+
+| 文件 | 说明 |
+| --- | --- |
+| `Runtime/Player/SelfGlow.cs` | 自体光：3 m 固定柔光、Soft 512 阴影、呼吸、`SetGlowing()` |
+| `Runtime/Player/ShiftForm.cs` | Tab 化形：影身灭光 + 穿 Veil 层 + 6 s 时限 + 强光弹回硬直 3 s |
+| `Runtime/Player/DetectionMeter.cs` | 检测度 0–100 = 所有守卫的最高确认进度；60 可疑 / 100 围猎 |
+| `Runtime/Detection/GuardAI.cs` | 航点巡逻 + 视线锥（光决定确认速度：亮 0.3 s / 暗 3 s / 影身不可见）+ 追逐 + 搜索 20 s |
+| `Runtime/Level/LevelFlow.cs` | 检查点、被抓回滚、通关、遗物、事件 |
+| `Runtime/Level/SaveSystem.cs` | `persistentDataPath/nightborn_save.json`，记录完成度 / 最好成绩 / 检查点 / 遗物 |
+| `Runtime/Level/Checkpoint.cs` · `ExitGoal.cs` · `Relic.cs` | 触发体与交互物 |
+| `Runtime/Level/DouseableLamp.cs` | 吹灭街灯（光操纵三件套之一） |
+| `Runtime/Interaction/IInteractable.cs` · `PlayerInteractor.cs` | E 键上下文交互（从角色胸口发射线，方向跟相机） |
+| 删除 | `LanternFollow.cs`、`ExposureMeter.cs`（无引用后清理） |
+
+### 13.2 场景（`L_Ch01_S01_Street`，45 个 GameObject）
+
+40×40 箱庭，四面围墙北侧留 4 m 门洞；两栋楼（BLD_A/B）+ 一道矮墙（GEO_LowWall）切出三条路线；5 个货箱做掩体；两道薄幕（`VEIL_Curtain_A/B`，Veil 层）挡直路、影身可穿；1 盏可吹灭街灯；1 名守卫（4 个航点 + 视线锥灯）；2 个检查点；北门出口；1 处血之遗物。
+
+### 13.3 真机验证（Unity 2022.3.34f1c1 / Play 模式）
+
+| 验证项 | 结果 |
+| --- | --- |
+| 吹灭街灯 | 灯下外光 **1.06 → 0.18**，灼伤解除 ✅ |
+| 站在锥内（强光） | 确认 0.3 s 级；暗处约 3 s；检测度 60 → 可疑、100 → 围猎 ✅ |
+| 被抓 | 日志 `被抓住 → 回检查点`，玩家回检查点、检测度清零、血量回滚 ✅ |
+| 检查点 | 走入触发区 → `检查点 0 已记录` ✅ |
+| 影身 | 暗处：`IsShadow=true`、自体光灭、Player↔Veil 碰撞忽略；退出后恢复 + 8 s 冷却 ✅ |
+| 强光下开影身 | 拒绝进入 + 3 s 硬直 ✅ |
+| 遗物 | 拾取 → 1/1，写入存档 `relicIds` ✅ |
+| 出口 | 进入触发区 → `IsComplete=true`，存档写入 `completed/bestTime` ✅ |
+| 编译 | Console 0 error / 0 warning；`Assembly-CSharp.dll` 28 KB → 46 KB |
+
+**踩到并修掉的坑（都写进代码注释了）**
+
+1. 遮挡射线打到**灯具自身灯柱** → 站在灯下永远读不到光；修正为忽略灯具根的碰撞体。
+2. 灯被吹灭后光照值仍持续到下一次 1 s 缓存刷新 → 在 `Evaluate` 里直接跳过 disabled 的灯。
+3. 相机射线打到自己 → 已排除玩家层；交互射线从**相机**出发够不到近处物体 → 改为从角色胸口出发。
+4. 检查点触发体做成 0.2 m 贴地薄板时，CharacterController 擦边不触发 → 改成 3×2×3 立式触发区。
+5. 守卫航点被运行时改短会 IndexOutOfRange → 加索引夹取。
+
+### 13.4 已知缺口（M1/M2 要做）
+
+- **吸血交互没做**：`BloodSystem.Feed()` 有接口，但没有可吸目标与按键流程。
+- **血视没做**：冷却型设计已定，尚未实现。
+- **推箱 / 压光药剂没做**：三件套目前只有"熄灯"落地。
+- **选关 UI 没做**：存档与 `IsUnlocked()` 已就绪，缺菜单场景。
+- **守卫无寻路**：航点直线移动，绕障能力靠摆位；M2 接 NavMesh。
+- **平衡**：站在守卫视线锥里会被 0.3 s 秒确认，实战偏硬，需要在 M1 调 `confirmBright` 与锥角。
 
 ---
 

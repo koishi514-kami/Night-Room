@@ -16,6 +16,7 @@ namespace Nightborn.EditorTools
     internal static class NightbornEditorGuard
     {
         private const string ScenePath = "Assets/Nightborn/Scenes/L_Ch01_S01_Street.unity";
+        private const string MenuScenePath = "Assets/Nightborn/Scenes/L_Main.unity";
         private const string Tag = "[Nightborn]";
 
         private static bool _autoOpened;
@@ -27,6 +28,8 @@ namespace Nightborn.EditorTools
 
         private static void OnEditorReady()
         {
+            // 有主菜单就先进菜单（产品行为）；没有就退回直接进关卡
+            var menu = AssetDatabase.LoadAssetAtPath<SceneAsset>(MenuScenePath);
             var scene = AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath);
             if (scene == null)
             {
@@ -34,10 +37,11 @@ namespace Nightborn.EditorTools
                 return;
             }
 
-            if (EditorSceneManager.playModeStartScene != scene)
+            var startScene = menu != null ? menu : scene;
+            if (EditorSceneManager.playModeStartScene != startScene)
             {
-                EditorSceneManager.playModeStartScene = scene;
-                Debug.Log(Tag + " 已把 Play 默认场景设为 " + ScenePath);
+                EditorSceneManager.playModeStartScene = startScene;
+                Debug.Log(Tag + " 已把 Play 默认场景设为 " + (menu != null ? MenuScenePath : ScenePath));
             }
 
             // 编辑器里如果开着的是空场景（比如原来的 SampleScene 已删除），直接换成开场街区，
@@ -54,6 +58,13 @@ namespace Nightborn.EditorTools
                     Debug.Log(Tag + " 已自动打开开场街区（当前是空场景）。");
                 }
             }
+        }
+
+        [MenuItem("Nightborn/打开主菜单场景")]
+        private static void OpenMenuScene()
+        {
+            if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                EditorSceneManager.OpenScene(MenuScenePath, OpenSceneMode.Single);
         }
 
         [MenuItem("Nightborn/打开开场街区场景")]

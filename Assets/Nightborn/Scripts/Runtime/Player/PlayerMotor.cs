@@ -81,6 +81,14 @@ namespace Nightborn.Player
                 Debug.LogWarning("[Nightborn] PlayerMotor 没绑定 cameraRig，移动方向会退化成世界坐标。");
         }
 
+        /// <summary>顶住可推物体（货箱）时把玩家速度转成推力。</summary>
+        private void OnControllerColliderHit(ControllerColliderHit hit)
+        {
+            var pushable = hit.collider.GetComponent<Nightborn.Interaction.Pushable>();
+            if (pushable == null) return;
+            pushable.Push(hit.moveDirection, CurrentSpeed);
+        }
+
         private void Update()
         {
             var kb = Keyboard.current;

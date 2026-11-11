@@ -32,6 +32,7 @@ namespace Nightborn.Player
         [SerializeField] private float breathFrequency = 0.35f;
 
         private float _seed;
+        private float _baseRadius;
         private bool _glowing = true;
 
         public Light GlowLight => glowLight;
@@ -44,6 +45,7 @@ namespace Nightborn.Player
         private void Awake()
         {
             _seed = UnityEngine.Random.value * 100f;
+            _baseRadius = radius;
             if (glowLight == null) glowLight = GetComponentInChildren<Light>();
             if (glowLight == null)
                 Debug.LogError("[Nightborn] SelfGlow 找不到 Light，请检查 PLAYER_Glow 子节点。");
@@ -65,6 +67,19 @@ namespace Nightborn.Player
             Apply();
             GlowChanged?.Invoke(on);
             Debug.Log("[Nightborn] 自体光 " + (on ? "开启" : "熄灭"));
+        }
+
+        /// <summary>临时改光照半径（压光药剂用）。</summary>
+        public void SetRadius(float newRadius)
+        {
+            radius = Mathf.Max(0.3f, newRadius);
+            if (glowLight != null) glowLight.range = radius;
+        }
+
+        /// <summary>恢复设计半径（3.5 m）。</summary>
+        public void ResetRadius()
+        {
+            SetRadius(_baseRadius);
         }
 
         private void Apply()

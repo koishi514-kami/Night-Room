@@ -79,6 +79,14 @@ namespace Nightborn.Level
 
         private void Update()
         {
+            if (_complete)
+            {
+                var kb = UnityEngine.InputSystem.Keyboard.current;
+                if (kb != null && kb.escapeKey.wasPressedThisFrame)
+                    UnityEngine.SceneManagement.SceneManager.LoadScene("L_Main");
+                return;
+            }
+
             if (_freezeTimer <= 0f) return;
             _freezeTimer -= Time.deltaTime;
             if (_freezeTimer <= 0f) RespawnAtCheckpoint();

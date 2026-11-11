@@ -20,6 +20,7 @@ namespace Nightborn.EditorTools
         private const string MaterialsDir = Root + "/Materials";
         private const string ScenesDir = Root + "/Scenes";
         private const string ScenePath = ScenesDir + "/L_Ch01_S01_Street.unity";
+        private const string MenuScenePath = ScenesDir + "/L_Main.unity";
 
         private static readonly Color C_Ink = new Color32(0x0E, 0x0F, 0x12, 0xFF);
         private static readonly Color C_Blood = new Color32(0x8B, 0x1E, 0x28, 0xFF);
@@ -35,6 +36,12 @@ namespace Nightborn.EditorTools
             var materials = CreateMaterials();
             CreateGlobalVolume();
             BuildStreetScene(pipeline, materials);
+            BuildMenuScene();
+            EditorBuildSettings.scenes = new[]
+            {
+                new EditorBuildSettingsScene(MenuScenePath, true),
+                new EditorBuildSettingsScene(ScenePath, true)
+            };
             AssetDatabase.SaveAssets();
             Debug.Log("[Nightborn] 基础场景生成完成 -> " + ScenePath);
         }
@@ -232,7 +239,12 @@ namespace Nightborn.EditorTools
                 new Vector3(11.5f, 0.5f, 3f)
             };
             for (int i = 0; i < cratePos.Length; i++)
-                MakeBox("PROP_Crate_" + (i + 1), envRoot, cratePos[i], new Vector3(1.1f, 1f, 1.1f), iron);
+            {
+                var crate = MakeBox("PROP_Crate_" + (i + 1), envRoot, cratePos[i], new Vector3(1.1f, 1f, 1.1f), iron);
+                // 可推：Rigidbody 冻结 Y/旋转，玩家顶住即可推动（遮光用）
+                crate.AddComponent<Rigidbody>();
+                crate.AddComponent<Nightborn.Interaction.Pushable>();
+            }
 
             // ---------- 薄幕（Veil 层）：影身可穿，光身被挡 ----------
             int veilLayer = LayerMask.NameToLayer("Veil");
@@ -472,6 +484,10 @@ namespace Nightborn.EditorTools
             soFeeder.ApplyModifiedPropertiesWithoutUndo();
 
             player.AddComponent<Nightborn.Player.BloodSight>();
+            var potion = player.AddComponent<Nightborn.Player.DimPotion>();
+            var soPotion = new SerializedObject(potion);
+            soPotion.FindProperty("glow").objectReferenceValue = glow;
+            soPotion.ApplyModifiedPropertiesWithoutUndo();
 
             // 关卡流程
             var flowGo = new GameObject("LEVEL_Flow");
@@ -506,6 +522,25 @@ namespace Nightborn.EditorTools
             var so = new SerializedObject(cp);
             so.FindProperty("index").intValue = index;
             so.ApplyModifiedPropertiesWithoutUndo();
+        }
+        /// <summary>生成主菜单 / 选关场景（代码建 UI，无 prefab 依赖）。</summary>
+        private static void BuildMenuScene()
+        {
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+            var camGo = new GameObject("CAM_Menu");
+            camGo.tag = "MainCamera";
+            var cam = camGo.AddComponent<UnityEngine.Camera>();
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.055f, 0.059f, 0.071f);
+            cam.orthographic = true;
+            camGo.AddComponent<UniversalAdditionalCameraData>();
+
+            var root = new GameObject("MENU_Root");
+            root.AddComponent<Nightborn.Menu.NightbornMenu>();
+
+            EditorSceneManager.SaveScene(scene, MenuScenePath);
+            Debug.Log("[Nightborn] 菜单场景已保存：" + MenuScenePath);
         }
         private static void RenderPreview(UnityEngine.Camera ignored)
         {

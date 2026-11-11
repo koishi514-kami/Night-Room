@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Nightborn/Scenes/L_Main.unity
+    guid: 0cc60d72c4c2fcd4fb85a24c6b3059a6
+  - enabled: 1
     path: Assets/Nightborn/Scenes/L_Ch01_S01_Street.unity
     guid: dd9105e3b878fa74f9265a1215464410
   m_configObjects: {}
